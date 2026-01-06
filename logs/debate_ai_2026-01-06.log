@@ -1,0 +1,311 @@
+2026-01-06 06:39:36,461 - main - INFO - Starting Debate AI System...
+2026-01-06 06:39:36,645 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-01-06 06:39:36,646 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 06:39:36,681 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-01-06 06:39:36,682 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 06:39:36,690 - sqlalchemy.engine.Engine - INFO - show standard_conforming_strings
+2026-01-06 06:39:36,695 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 06:39:36,699 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 06:39:36,715 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:39:36,726 - sqlalchemy.engine.Engine - INFO - [generated in 0.01038s] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:39:36,759 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:39:36,760 - sqlalchemy.engine.Engine - INFO - [cached since 0.04495s ago] ('debate_sessions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:39:36,763 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:39:36,764 - sqlalchemy.engine.Engine - INFO - [cached since 0.04868s ago] ('turns', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:39:36,766 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:39:36,767 - sqlalchemy.engine.Engine - INFO - [cached since 0.05215s ago] ('fallacies', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:39:36,769 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:39:36,774 - sqlalchemy.engine.Engine - INFO - [cached since 0.05917s ago] ('achievements', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:39:36,777 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 06:39:36,779 - main - INFO - Database tables created/verified
+2026-01-06 06:39:36,780 - main - INFO - Application started successfully
+2026-01-06 06:42:36,741 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 06:42:36,757 - sqlalchemy.engine.Engine - INFO - SELECT users.user_id, users.username, users.email, users.current_skill_level, users.total_debates, users.created_at, users.updated_at 
+FROM users 
+WHERE users.user_id = $1::UUID
+2026-01-06 06:42:36,783 - sqlalchemy.engine.Engine - INFO - [generated in 0.02568s] ('8f3c2e7b-6b4a-4c9a-9e6f-2d5c1a8f7e42',)
+2026-01-06 06:42:36,803 - sqlalchemy.engine.Engine - INFO - INSERT INTO users (user_id, username, email, current_skill_level, total_debates) VALUES ($1::UUID, $2::VARCHAR, $3::VARCHAR, $4::FLOAT, $5::INTEGER) RETURNING users.created_at, users.updated_at
+2026-01-06 06:42:36,804 - sqlalchemy.engine.Engine - INFO - [generated in 0.00082s] ('8f3c2e7b-6b4a-4c9a-9e6f-2d5c1a8f7e42', None, None, 0.5, 0)
+2026-01-06 06:42:36,815 - sqlalchemy.engine.Engine - INFO - INSERT INTO debate_sessions (session_id, user_id, topic, difficulty, status, ended_at, total_turns, avg_argument_strength, fallacy_count, overall_performance) VALUES ($1::VARCHAR, $2::UUID, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::TIMESTAMP WITH TIME ZONE, $7::INTEGER, $8::FLOAT, $9::INTEGER, $10::VARCHAR) RETURNING debate_sessions.started_at
+2026-01-06 06:42:36,819 - sqlalchemy.engine.Engine - INFO - [generated in 0.00458s] ('debate_23a1234dbd9c', '8f3c2e7b-6b4a-4c9a-9e6f-2d5c1a8f7e42', 'ai', 'standard', 'active', None, None, None, None, None)
+2026-01-06 06:42:36,827 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 06:43:12,034 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 06:43:12,039 - sqlalchemy.engine.Engine - INFO - SELECT debate_sessions.session_id, debate_sessions.user_id, debate_sessions.topic, debate_sessions.difficulty, debate_sessions.status, debate_sessions.started_at, debate_sessions.ended_at, debate_sessions.total_turns, debate_sessions.avg_argument_strength, debate_sessions.fallacy_count, debate_sessions.overall_performance, debate_sessions.final_state 
+FROM debate_sessions 
+WHERE debate_sessions.session_id = $1::VARCHAR
+2026-01-06 06:43:12,057 - sqlalchemy.engine.Engine - INFO - [generated in 0.01780s] ('debate_23a1234dbd9c',)
+2026-01-06 06:43:12,076 - sqlalchemy.engine.Engine - INFO - SELECT turns.turn_id, turns.session_id, turns.turn_number, turns.user_input, turns.ai_response, turns.analyzer_output, turns.research_output, turns.socratic_output, turns.advocate_output, turns.user_skill_at_turn, turns.argument_strength, turns.timestamp 
+FROM turns 
+WHERE turns.session_id = $1::VARCHAR
+2026-01-06 06:43:12,077 - sqlalchemy.engine.Engine - INFO - [generated in 0.00193s] ('debate_23a1234dbd9c',)
+2026-01-06 06:43:26,129 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-01-06 06:44:20,886 - main - INFO - Shutting down application...
+2026-01-06 06:44:30,909 - main - INFO - Starting Debate AI System...
+2026-01-06 06:44:31,077 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-01-06 06:44:31,077 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 06:44:31,080 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-01-06 06:44:31,080 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 06:44:31,082 - sqlalchemy.engine.Engine - INFO - show standard_conforming_strings
+2026-01-06 06:44:31,082 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 06:44:31,085 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 06:44:31,092 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:44:31,094 - sqlalchemy.engine.Engine - INFO - [generated in 0.00202s] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:44:31,107 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:44:31,108 - sqlalchemy.engine.Engine - INFO - [cached since 0.01584s ago] ('debate_sessions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:44:31,110 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:44:31,111 - sqlalchemy.engine.Engine - INFO - [cached since 0.01852s ago] ('turns', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:44:31,112 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:44:31,113 - sqlalchemy.engine.Engine - INFO - [cached since 0.02108s ago] ('fallacies', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:44:31,116 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:44:31,118 - sqlalchemy.engine.Engine - INFO - [cached since 0.02558s ago] ('achievements', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:44:31,121 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 06:44:31,122 - main - INFO - Database tables created/verified
+2026-01-06 06:44:31,123 - main - INFO - Application started successfully
+2026-01-06 06:44:31,130 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 06:44:31,138 - sqlalchemy.engine.Engine - INFO - SELECT debate_sessions.session_id, debate_sessions.user_id, debate_sessions.topic, debate_sessions.difficulty, debate_sessions.status, debate_sessions.started_at, debate_sessions.ended_at, debate_sessions.total_turns, debate_sessions.avg_argument_strength, debate_sessions.fallacy_count, debate_sessions.overall_performance, debate_sessions.final_state 
+FROM debate_sessions 
+WHERE debate_sessions.session_id = $1::VARCHAR
+2026-01-06 06:44:31,140 - sqlalchemy.engine.Engine - INFO - [generated in 0.00287s] ('debate_23a1234dbd9c',)
+2026-01-06 06:44:31,148 - sqlalchemy.engine.Engine - INFO - SELECT turns.turn_id, turns.session_id, turns.turn_number, turns.user_input, turns.ai_response, turns.analyzer_output, turns.research_output, turns.socratic_output, turns.advocate_output, turns.user_skill_at_turn, turns.argument_strength, turns.timestamp 
+FROM turns 
+WHERE turns.session_id = $1::VARCHAR
+2026-01-06 06:44:31,149 - sqlalchemy.engine.Engine - INFO - [generated in 0.00136s] ('debate_23a1234dbd9c',)
+2026-01-06 06:44:40,585 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-01-06 06:48:29,855 - main - INFO - Shutting down application...
+2026-01-06 06:48:35,161 - main - INFO - Starting Debate AI System...
+2026-01-06 06:48:35,300 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-01-06 06:48:35,300 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 06:48:35,303 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-01-06 06:48:35,304 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 06:48:35,307 - sqlalchemy.engine.Engine - INFO - show standard_conforming_strings
+2026-01-06 06:48:35,309 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 06:48:35,312 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 06:48:35,318 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:48:35,321 - sqlalchemy.engine.Engine - INFO - [generated in 0.00325s] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:48:35,332 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:48:35,333 - sqlalchemy.engine.Engine - INFO - [cached since 0.01462s ago] ('debate_sessions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:48:35,335 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:48:35,336 - sqlalchemy.engine.Engine - INFO - [cached since 0.01819s ago] ('turns', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:48:35,341 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:48:35,346 - sqlalchemy.engine.Engine - INFO - [cached since 0.02781s ago] ('fallacies', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:48:35,351 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 06:48:35,353 - sqlalchemy.engine.Engine - INFO - [cached since 0.03523s ago] ('achievements', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 06:48:35,357 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 06:48:35,362 - main - INFO - Database tables created/verified
+2026-01-06 06:48:35,362 - main - INFO - Application started successfully
+2026-01-06 06:48:36,744 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 06:48:36,757 - sqlalchemy.engine.Engine - INFO - SELECT debate_sessions.session_id, debate_sessions.user_id, debate_sessions.topic, debate_sessions.difficulty, debate_sessions.status, debate_sessions.started_at, debate_sessions.ended_at, debate_sessions.total_turns, debate_sessions.avg_argument_strength, debate_sessions.fallacy_count, debate_sessions.overall_performance, debate_sessions.final_state 
+FROM debate_sessions 
+WHERE debate_sessions.session_id = $1::VARCHAR
+2026-01-06 06:48:36,812 - sqlalchemy.engine.Engine - INFO - [generated in 0.05566s] ('debate_23a1234dbd9c',)
+2026-01-06 06:48:36,871 - sqlalchemy.engine.Engine - INFO - SELECT turns.turn_id, turns.session_id, turns.turn_number, turns.user_input, turns.ai_response, turns.analyzer_output, turns.research_output, turns.socratic_output, turns.advocate_output, turns.user_skill_at_turn, turns.argument_strength, turns.timestamp 
+FROM turns 
+WHERE turns.session_id = $1::VARCHAR
+2026-01-06 06:48:36,890 - sqlalchemy.engine.Engine - INFO - [generated in 0.01995s] ('debate_23a1234dbd9c',)
+2026-01-06 06:48:44,295 - sqlalchemy.engine.Engine - INFO - ROLLBACK
+2026-01-06 10:49:03,379 - main - INFO - Starting Debate AI System...
+2026-01-06 10:49:03,385 - main - INFO - Starting Debate AI System...
+2026-01-06 10:49:03,550 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-01-06 10:49:03,550 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-01-06 10:49:03,550 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:03,551 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:03,591 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-01-06 10:49:03,591 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-01-06 10:49:03,592 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:03,592 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:03,598 - sqlalchemy.engine.Engine - INFO - show standard_conforming_strings
+2026-01-06 10:49:03,599 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:03,599 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:03,603 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 10:49:03,609 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,609 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,614 - sqlalchemy.engine.Engine - INFO - [generated in 0.00534s] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,617 - sqlalchemy.engine.Engine - INFO - [generated in 0.00797s] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,650 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,650 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,653 - sqlalchemy.engine.Engine - INFO - [cached since 0.04431s ago] ('debate_sessions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,653 - sqlalchemy.engine.Engine - INFO - [cached since 0.04447s ago] ('debate_sessions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,655 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,655 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,658 - sqlalchemy.engine.Engine - INFO - [cached since 0.04899s ago] ('turns', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,658 - sqlalchemy.engine.Engine - INFO - [cached since 0.04944s ago] ('turns', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,660 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,661 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,667 - sqlalchemy.engine.Engine - INFO - [cached since 0.05783s ago] ('fallacies', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,667 - sqlalchemy.engine.Engine - INFO - [cached since 0.05842s ago] ('fallacies', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,669 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,669 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:03,673 - sqlalchemy.engine.Engine - INFO - [cached since 0.06405s ago] ('achievements', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,675 - sqlalchemy.engine.Engine - INFO - [cached since 0.06644s ago] ('achievements', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:03,678 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 10:49:03,675 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 10:49:03,681 - main - INFO - Database tables created/verified
+2026-01-06 10:49:03,682 - main - INFO - Database tables created/verified
+2026-01-06 10:49:03,682 - main - INFO - Application started successfully
+2026-01-06 10:49:03,683 - main - INFO - Application started successfully
+2026-01-06 10:49:13,042 - main - INFO - Shutting down application...
+2026-01-06 10:49:13,043 - main - INFO - Shutting down application...
+2026-01-06 10:49:17,574 - main - INFO - Starting Debate AI System...
+2026-01-06 10:49:17,574 - main - INFO - Starting Debate AI System...
+2026-01-06 10:49:17,702 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-01-06 10:49:17,703 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:17,706 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-01-06 10:49:17,707 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:17,710 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-01-06 10:49:17,710 - sqlalchemy.engine.Engine - INFO - show standard_conforming_strings
+2026-01-06 10:49:17,711 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:17,711 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:17,714 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 10:49:17,715 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-01-06 10:49:17,719 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:17,723 - sqlalchemy.engine.Engine - INFO - show standard_conforming_strings
+2026-01-06 10:49:17,724 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,726 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:49:17,731 - sqlalchemy.engine.Engine - INFO - [generated in 0.00651s] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,731 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 10:49:17,740 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,743 - sqlalchemy.engine.Engine - INFO - [generated in 0.00257s] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,744 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,749 - sqlalchemy.engine.Engine - INFO - [cached since 0.02518s ago] ('debate_sessions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,751 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,758 - sqlalchemy.engine.Engine - INFO - [cached since 0.03365s ago] ('turns', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,757 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,760 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,760 - sqlalchemy.engine.Engine - INFO - [cached since 0.01993s ago] ('debate_sessions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,761 - sqlalchemy.engine.Engine - INFO - [cached since 0.03702s ago] ('fallacies', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,763 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,763 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,769 - sqlalchemy.engine.Engine - INFO - [cached since 0.04534s ago] ('achievements', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,772 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 10:49:17,773 - sqlalchemy.engine.Engine - INFO - [cached since 0.03321s ago] ('turns', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,775 - main - INFO - Database tables created/verified
+2026-01-06 10:49:17,775 - main - INFO - Application started successfully
+2026-01-06 10:49:17,776 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,781 - sqlalchemy.engine.Engine - INFO - [cached since 0.04057s ago] ('fallacies', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,783 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:49:17,784 - sqlalchemy.engine.Engine - INFO - [cached since 0.04403s ago] ('achievements', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:49:17,787 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 10:49:17,788 - main - INFO - Database tables created/verified
+2026-01-06 10:49:17,789 - main - INFO - Application started successfully
+2026-01-06 10:51:21,259 - main - INFO - Starting Debate AI System...
+2026-01-06 10:51:21,366 - sqlalchemy.engine.Engine - INFO - select pg_catalog.version()
+2026-01-06 10:51:21,366 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:51:21,369 - sqlalchemy.engine.Engine - INFO - select current_schema()
+2026-01-06 10:51:21,369 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:51:21,371 - sqlalchemy.engine.Engine - INFO - show standard_conforming_strings
+2026-01-06 10:51:21,372 - sqlalchemy.engine.Engine - INFO - [raw sql] ()
+2026-01-06 10:51:21,374 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 10:51:21,379 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:51:21,381 - sqlalchemy.engine.Engine - INFO - [generated in 0.00216s] ('users', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:51:21,390 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:51:21,393 - sqlalchemy.engine.Engine - INFO - [cached since 0.01419s ago] ('debate_sessions', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:51:21,395 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:51:21,396 - sqlalchemy.engine.Engine - INFO - [cached since 0.01709s ago] ('turns', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:51:21,397 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:51:21,400 - sqlalchemy.engine.Engine - INFO - [cached since 0.02144s ago] ('fallacies', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:51:21,402 - sqlalchemy.engine.Engine - INFO - SELECT pg_catalog.pg_class.relname 
+FROM pg_catalog.pg_class JOIN pg_catalog.pg_namespace ON pg_catalog.pg_namespace.oid = pg_catalog.pg_class.relnamespace 
+WHERE pg_catalog.pg_class.relname = $1::VARCHAR AND pg_catalog.pg_class.relkind = ANY (ARRAY[$2::VARCHAR, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::VARCHAR]) AND pg_catalog.pg_table_is_visible(pg_catalog.pg_class.oid) AND pg_catalog.pg_namespace.nspname != $7::VARCHAR
+2026-01-06 10:51:21,403 - sqlalchemy.engine.Engine - INFO - [cached since 0.02441s ago] ('achievements', 'r', 'p', 'f', 'v', 'm', 'pg_catalog')
+2026-01-06 10:51:21,405 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 10:51:21,409 - main - INFO - Database tables created/verified
+2026-01-06 10:51:21,410 - main - INFO - Application started successfully
+2026-01-06 10:52:05,473 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 10:52:05,481 - sqlalchemy.engine.Engine - INFO - SELECT users.user_id, users.username, users.email, users.current_skill_level, users.total_debates, users.created_at, users.updated_at 
+FROM users 
+WHERE users.user_id = $1::UUID
+2026-01-06 10:52:05,487 - sqlalchemy.engine.Engine - INFO - [generated in 0.00566s] ('8f3c2e7b-6b4a-4c9a-9e6f-2d5c1a8f7e42',)
+2026-01-06 10:52:05,540 - sqlalchemy.engine.Engine - INFO - INSERT INTO debate_sessions (session_id, user_id, topic, difficulty, status, ended_at, total_turns, avg_argument_strength, fallacy_count, overall_performance) VALUES ($1::VARCHAR, $2::UUID, $3::VARCHAR, $4::VARCHAR, $5::VARCHAR, $6::TIMESTAMP WITH TIME ZONE, $7::INTEGER, $8::FLOAT, $9::INTEGER, $10::VARCHAR) RETURNING debate_sessions.started_at
+2026-01-06 10:52:05,541 - sqlalchemy.engine.Engine - INFO - [generated in 0.00104s] ('debate_f6f2b248327a', '8f3c2e7b-6b4a-4c9a-9e6f-2d5c1a8f7e42', 'ai', 'standard', 'active', None, None, None, None, None)
+2026-01-06 10:52:05,578 - sqlalchemy.engine.Engine - INFO - COMMIT
+2026-01-06 10:52:39,809 - sqlalchemy.engine.Engine - INFO - BEGIN (implicit)
+2026-01-06 10:52:39,811 - sqlalchemy.engine.Engine - INFO - SELECT debate_sessions.session_id, debate_sessions.user_id, debate_sessions.topic, debate_sessions.difficulty, debate_sessions.status, debate_sessions.started_at, debate_sessions.ended_at, debate_sessions.total_turns, debate_sessions.avg_argument_strength, debate_sessions.fallacy_count, debate_sessions.overall_performance, debate_sessions.final_state 
+FROM debate_sessions 
+WHERE debate_sessions.session_id = $1::VARCHAR
+2026-01-06 10:52:39,813 - sqlalchemy.engine.Engine - INFO - [generated in 0.00176s] ('debate_f6f2b248327a',)
+2026-01-06 10:52:39,828 - sqlalchemy.engine.Engine - INFO - SELECT turns.turn_id, turns.session_id, turns.turn_number, turns.user_input, turns.ai_response, turns.analyzer_output, turns.research_output, turns.socratic_output, turns.advocate_output, turns.user_skill_at_turn, turns.argument_strength, turns.timestamp 
+FROM turns 
+WHERE turns.session_id = $1::VARCHAR
+2026-01-06 10:52:39,845 - sqlalchemy.engine.Engine - INFO - [generated in 0.01635s] ('debate_f6f2b248327a',)
+2026-01-06 10:52:42,949 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 2.0 seconds as it raised PermissionDenied: 403 Your API key was reported as leaked. Please use another API key..
+2026-01-06 10:52:45,994 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 4.0 seconds as it raised PermissionDenied: 403 Your API key was reported as leaked. Please use another API key..
+2026-01-06 10:52:50,230 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 8.0 seconds as it raised PermissionDenied: 403 Your API key was reported as leaked. Please use another API key..
+2026-01-06 10:52:58,462 - langchain_google_genai.chat_models - WARNING - Retrying langchain_google_genai.chat_models._chat_with_retry.<locals>._chat_with_retry in 16.0 seconds as it raised PermissionDenied: 403 Your API key was reported as leaked. Please use another API key..
