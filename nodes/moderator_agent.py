@@ -363,8 +363,6 @@ def synthesize_responses(state: DebateState, llm) -> str:
     """Combine multiple agent outputs using structured output"""
     
     agent_outputs = state.get("agent_outputs", {})
-
-    print(f"-----[agent_outputs] {agent_outputs} ")
     
     if not agent_outputs:
         return "I need a moment to process that. Could you rephrase your point?"
@@ -377,6 +375,8 @@ def synthesize_responses(state: DebateState, llm) -> str:
         f"**{agent}:** {output}" 
         for agent, output in agent_outputs.items()
     ])
+
+    print(f"[formatted_agent_outputs] {formatted_outputs}")
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", MODERATOR_SYSTEM_PROMPT),
@@ -384,7 +384,7 @@ def synthesize_responses(state: DebateState, llm) -> str:
     ])
     
     try:
-        result: SynthesizedResponse = (prompt | structured_llm).invoke({
+        result = (prompt | llm).invoke({
             "agent_outputs": formatted_outputs,
             "difficulty": state["difficulty"],
             "current_phase": state["current_phase"],
@@ -392,7 +392,7 @@ def synthesize_responses(state: DebateState, llm) -> str:
             "topic": state["topic"],
             "turn_count": state["turn_count"]
         })
-        return result.response
+        return result.content
     except Exception as e:
         print(f"[Moderator] Synthesis error: {e}, using fallback")
         # Fallback: Simple concatenation
@@ -466,7 +466,7 @@ def moderator_node(state: DebateState):
             "ai_response": final_response,
             "next_agents": ["END"],
             "conversation_history": [conversation_entry],
-            "agent_outputs": {}  # Clear for next turn
+            "agent_outputs": {"__clear__": True}
         }
     
     else:
@@ -521,7 +521,8 @@ def moderator_node(state: DebateState):
             **updates,
             "conversation_history": [user_entry],
             "user_claims": claims_to_add,
-            "fallacies_detected": fallacies_to_add
+            "fallacies_detected": fallacies_to_add,
+            "agent_outputs": {"__clear__": True}
         }
 
 # ============================================================================

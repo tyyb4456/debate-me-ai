@@ -3,7 +3,9 @@ from operator import add
 from models.agent_models import GrowthTrackerOutput, DevilsAdvocateOutput, SocraticOutput, AnalyzerOutput, ResearchOutput
 
 def merge_dicts(left: Dict, right: Dict) -> Dict:
-    """Merge two dictionaries, with right taking precedence"""
+    """Merge dicts with special clear behavior"""
+    if '__clear__' in right:
+        return {k: v for k, v in right.items() if k != '__clear__'}
     return {**left, **right}
 
 class DebateState(TypedDict):
