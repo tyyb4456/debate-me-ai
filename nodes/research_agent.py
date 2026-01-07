@@ -12,6 +12,9 @@ import re
 from urllib.parse import urlparse
 from state import DebateState
 from dotenv import load_dotenv
+from tavily import TavilyClient
+import os
+
 load_dotenv()
 from models.agent_models import ResearchOutput, SearchQuery, CategorizedEvidence, EvidenceItem, DetailedEvidence
 
@@ -96,7 +99,6 @@ If information is not available, set the field to null."""
 class SourceCredibility:
     """Calculate credibility scores for sources"""
     
-    # Trusted domains and their base scores
     HIGH_CREDIBILITY_DOMAINS = {
         '.edu': 0.3,
         '.gov': 0.3,
@@ -119,7 +121,6 @@ class SourceCredibility:
         'ft.com': 0.2,
     }
     
-    # Known low-quality or biased sources (to flag or filter)
     LOW_CREDIBILITY_DOMAINS = [
         'infowars.com',
         'naturalnews.com',
@@ -135,7 +136,11 @@ class SourceCredibility:
         """Calculate credibility score (0-1) for a source"""
         
         base_score = 0.5
-        domain = urlparse(url).netloc.lower()
+        
+        try:
+            domain = urlparse(url).netloc.lower()
+        except:
+            domain = ""
         
         # Check if it's a known low-quality source
         if any(bad in domain for bad in SourceCredibility.LOW_CREDIBILITY_DOMAINS):
@@ -160,7 +165,7 @@ class SourceCredibility:
         elif source_type.lower() in ['opinion', 'editorial', 'blog']:
             base_score -= 0.15
         
-        # Recency adjustment (for time-sensitive topics)
+        # Recency adjustment
         if publication_year:
             current_year = datetime.now().year
             years_old = current_year - publication_year
@@ -174,19 +179,30 @@ class SourceCredibility:
         return max(0.0, min(1.0, base_score))
 
 
+
 # ============================================================================
-# QUERY GENERATION WITH STRUCTURED OUTPUT
+# QUERY GENERATION
 # ============================================================================
 
 def generate_search_queries(claim: str, topic: str, llm) -> List[str]:
-    """Generate focused search queries from a claim using structured output"""
+    """Generate focused search queries from a claim"""
     
-    # Create structured LLM
     structured_llm = llm.with_structured_output(SearchQuery)
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", "You are an expert at generating effective search queries for research."),
-        ("human", QUERY_GENERATION_PROMPT)
+        ("human", """Generate 3-4 focused search queries to find evidence about this claim.
+
+**Claim:** {claim}
+**Topic:** {topic}
+
+**Requirements:**
+- Query 1: Broad search with main concepts
+- Query 2: Specific real-world examples or pilot programs
+- Query 3: Academic/research angle
+- Query 4: Counter-perspective or alternative framing
+
+Generate diverse queries that will find evidence from multiple angles.""")
     ])
     
     try:
@@ -197,35 +213,40 @@ def generate_search_queries(claim: str, topic: str, llm) -> List[str]:
         return result.queries
     except Exception as e:
         print(f"[Research] Query generation error: {e}")
-        # Fallback: Generate basic queries programmatically
         return generate_fallback_queries(claim, topic)
 
 
 def generate_fallback_queries(claim: str, topic: str) -> List[str]:
     """Fallback query generation using simple rules"""
     key_concepts = extract_key_concepts(claim)
-    return [
-        f'"{topic}" {key_concepts[0]} study',
-        f'{topic} pilot program results',
-        f'{topic} research evidence',
-        f'"{topic}" {key_concepts[0]} data'
-    ][:4]
+    
+    queries = [
+        f"{topic} research evidence",
+        f'"{topic}" study results',
+        f'{topic} real world examples',
+    ]
+    
+    if key_concepts:
+        queries.append(f'{topic} {key_concepts[0]} data')
+    
+    return queries[:4]
 
 
 def extract_key_concepts(text: str) -> List[str]:
     """Extract key concepts from claim text"""
-    stop_words = {'the', 'a', 'an', 'is', 'are', 'was', 'were', 'will', 'would', 
-                  'should', 'could', 'have', 'has', 'had', 'do', 'does', 'did',
-                  'because', 'if', 'when', 'where', 'why', 'how', 'that', 'this'}
+    stop_words = {
+        'the', 'a', 'an', 'is', 'are', 'was', 'were', 'will', 'would', 
+        'should', 'could', 'have', 'has', 'had', 'do', 'does', 'did',
+        'because', 'if', 'when', 'where', 'why', 'how', 'that', 'this'
+    }
     
     words = re.findall(r'\b\w+\b', text.lower())
     key_words = [w for w in words if w not in stop_words and len(w) > 3]
     
     return key_words[:3]
 
-
 # ============================================================================
-# EVIDENCE PROCESSING WITH STRUCTURED OUTPUT
+# EVIDENCE CATEGORIZATION
 # ============================================================================
 
 def categorize_evidence(
@@ -235,7 +256,9 @@ def categorize_evidence(
 ) -> Dict[str, List[Dict]]:
     """Categorize search results using structured output"""
     
-    # Create structured LLM
+    if not search_results:
+        return {"supporting": [], "opposing": [], "neutral": []}
+    
     structured_llm = llm.with_structured_output(CategorizedEvidence)
     
     # Format search results for prompt
@@ -249,7 +272,14 @@ def categorize_evidence(
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", "You analyze evidence and determine its relation to claims."),
-        ("human", EVIDENCE_CATEGORIZATION_PROMPT)
+        ("human", """Categorize these search results into supporting, opposing, or neutral evidence.
+
+**User's Position:** {user_claim}
+
+**Search Results:**
+{search_results}
+
+For each result, determine if it supports, opposes, or provides neutral/mixed evidence regarding the user's claim.""")
     ])
     
     try:
@@ -265,7 +295,6 @@ def categorize_evidence(
         }
     except Exception as e:
         print(f"[Research] Categorization error: {e}")
-        # Fallback to simple keyword matching
         return simple_categorize(search_results, user_claim)
 
 
@@ -304,6 +333,10 @@ def simple_categorize(results: List[Dict], claim: str) -> Dict[str, List[Dict]]:
     return {"supporting": supporting, "opposing": opposing, "neutral": neutral}
 
 
+# ============================================================================
+# EVIDENCE EXTRACTION
+# ============================================================================
+
 def extract_detailed_evidence(
     sources: List[Dict],
     llm
@@ -313,7 +346,6 @@ def extract_detailed_evidence(
     if not sources:
         return []
     
-    # Create structured LLM
     structured_llm = llm.with_structured_output(DetailedEvidence)
     
     formatted_sources = "\n\n".join([
@@ -327,7 +359,18 @@ def extract_detailed_evidence(
     
     prompt = ChatPromptTemplate.from_messages([
         ("system", "You extract precise evidence from sources with full details."),
-        ("human", EVIDENCE_EXTRACTION_PROMPT)
+        ("human", """Extract specific, detailed evidence from these sources.
+
+**Sources:** {sources}
+
+For each source, extract:
+- Source name and type (study, report, article, etc.)
+- Key finding (specific statistics, conclusions)
+- Methodology (if study: sample size, duration, controls)
+- Limitations or caveats
+- Publication year
+
+Be specific and precise. If information is not available, set the field to null.""")
     ])
     
     try:
@@ -350,201 +393,228 @@ def extract_detailed_evidence(
 
 
 # ============================================================================
-# MOCK WEB SEARCH (Replace with real implementation)
+# WEB SEARCH TOOL
 # ============================================================================
 
 @tool
 def web_search_tool(query: str) -> List[Dict]:
     """
-    Search the web for information. Returns top results.
+    Search the web for information using Tavily API.
+    Returns list of result dictionaries.
     
-    NOTE: This is a mock implementation. In production, replace with:
-    - LangChain's Tavily search tool
-    - Google Custom Search API
-    - Bing Search API
-    - SerpAPI
+    FIXED: Now returns proper List[Dict] instead of formatted string
     """
     
-    # Mock results for demonstration
+    try:
+        # Initialize Tavily client
+        api_key = os.getenv('TAVILY_API_KEY')
+        if not api_key:
+            print("[Research] WARNING: TAVILY_API_KEY not found, using mock results")
+            return get_mock_results(query)
+        
+        tavily = TavilyClient(api_key=api_key)
+        search_results = tavily.search(query, max_results=5)
+        
+        # Format results as list of dicts
+        if search_results and 'results' in search_results:
+            formatted_results = []
+            
+            for result in search_results['results']:
+                formatted_results.append({
+                    'title': result.get('title', 'Untitled'),
+                    'url': result.get('url', ''),
+                    'snippet': result.get('content', 'No description available')[:300],
+                    'date': None,  # Tavily doesn't always provide dates
+                    'type': 'article'  # Default type
+                })
+            
+            return formatted_results
+        
+        # No results found
+        return []
+        
+    except Exception as e:
+        print(f"[Research] Tavily search error: {e}")
+        # Return mock results as fallback
+        return get_mock_results(query)
+
+
+def get_mock_results(query: str) -> List[Dict]:
+    """
+    Mock search results for testing or when Tavily is unavailable
+    """
     return [
         {
             "title": f"Research Study on {query}",
             "url": f"https://example.edu/research/{query.replace(' ', '-')}",
             "snippet": f"Comprehensive study examining {query} with peer-reviewed methodology and significant findings across multiple demographics.",
-            "date": "2024-01-15"
+            "date": "2024-01-15",
+            "type": "study"
         },
         {
             "title": f"Government Report: {query}",
             "url": f"https://example.gov/reports/{query.replace(' ', '-')}",
             "snippet": f"Official government analysis of {query} including statistical data and policy recommendations.",
-            "date": "2023-11-20"
+            "date": "2023-11-20",
+            "type": "report"
         },
         {
             "title": f"News Analysis: {query}",
             "url": f"https://reuters.com/article/{query.replace(' ', '-')}",
             "snippet": f"Recent developments and expert opinions on {query} from leading researchers.",
-            "date": "2024-12-01"
+            "date": "2024-12-01",
+            "type": "article"
         }
     ]
 
 
+
 # ============================================================================
-# MAIN RESEARCH AGENT NODE
+# MAIN RESEARCH NODE - FIXED
 # ============================================================================
 
 def research_agent_node(state: DebateState):
     """
-    Main research node that finds and evaluates evidence
-    
-    Inputs from state:
-    - user_input or user_claim: The claim to research
-    - topic: Overall debate topic
-    - search_focus (optional): Specific aspect to focus on
-    
-    Outputs to state:
-    - research_output: Structured evidence with credibility ratings
+    FIXED: Main research node with proper error handling
     """
     
-    # Initialize LLM
-    model = init_chat_model("gemini-2.5-flash", model_provider="google_genai", temperature=0.7)
+    model = init_chat_model("gemini-2.0-flash-exp", model_provider="google_genai", temperature=0.7)
     
-    # Extract research parameters (READ ONLY - don't modify state)
+    # Extract research parameters
     claim = state.get('user_input') or state.get('user_claim', '')
     topic = state.get('topic', '')
-    search_focus = state.get('search_focus', claim)
     
     print(f"[Research Agent] Researching: '{claim[:60]}...'")
     
-    # Step 1: Generate search queries (with structured output)
-    queries = generate_search_queries(claim, topic, model)
-    print(f"[Research Agent] Generated {len(queries)} queries: {queries}")
-    
-    # Step 2: Execute searches
-    all_results = []
-    for query in queries:
-        print(f"[Research Agent] Searching: {query}")
-        results = web_search_tool(query)
+    try:
+        # Step 1: Generate queries
+        queries = generate_search_queries(claim, topic, model)
+        print(f"[Research Agent] Generated {len(queries)} queries")
         
-        # Add credibility scores
-        for result in results:
-            # Extract year from date if available
-            year = None
-            if 'date' in result:
-                try:
-                    year = int(result['date'][:4])
-                except:
-                    pass
+        # Step 2: Execute searches - FIXED
+        all_results = []
+        for query in queries:
+            print(f"[Research Agent] Searching: {query}")
+            results = web_search_tool(query)  # Now returns List[Dict] correctly
             
-            # Calculate credibility
-            result['credibility'] = SourceCredibility.calculate_credibility(
-                url=result.get('url', ''),
-                source_type=result.get('type', 'article'),
-                publication_year=year
-            )
+            # Add credibility scores
+            for result in results:
+                year = None
+                if result.get('date'):
+                    try:
+                        year = int(result['date'][:4])
+                    except:
+                        pass
+                
+                result['credibility'] = SourceCredibility.calculate_credibility(
+                    url=result.get('url', ''),
+                    source_type=result.get('type', 'article'),
+                    publication_year=year
+                )
+            
+            all_results.extend(results)
         
-        all_results.extend(results)
-    
-    # Step 3: Filter low-quality sources
-    quality_threshold = 0.4
-    filtered_results = [r for r in all_results if r.get('credibility', 0) >= quality_threshold]
-    print(f"[Research Agent] Found {len(filtered_results)} quality sources")
-    
-    # Step 4: Categorize evidence (with structured output)
-    categorized = categorize_evidence(filtered_results, claim, model)
-    
-    # Step 5: Extract detailed evidence (with structured output)
-    supporting_detailed = extract_detailed_evidence(
-        categorized['supporting'][:3], model
-    ) if categorized['supporting'] else []
-    
-    opposing_detailed = extract_detailed_evidence(
-        categorized['opposing'][:3], model
-    ) if categorized['opposing'] else []
-    
-    neutral_detailed = extract_detailed_evidence(
-        categorized['neutral'][:2], model
-    ) if categorized['neutral'] else []
-    
-    # Step 6: Determine overall evidence strength
-    num_supporting = len(categorized['supporting'])
-    num_opposing = len(categorized['opposing'])
-    
-    if num_supporting > num_opposing * 2:
-        overall_strength = "strong_support"
-    elif num_opposing > num_supporting * 2:
-        overall_strength = "strong_opposition"
-    else:
-        overall_strength = "mixed"
-    
-    # Find strongest source
-    strongest_source = None
-    if filtered_results:
-        strongest_source = max(filtered_results, key=lambda x: x.get('credibility', 0))
-    
-    # Step 7: Create structured output using Pydantic model
-    research_output = ResearchOutput(
-        supporting_evidence=supporting_detailed,
-        opposing_evidence=opposing_detailed,
-        neutral_evidence=neutral_detailed,
-        queries_used=queries,
-        overall_evidence_strength=overall_strength,
-        strongest_source=strongest_source,
-        total_sources_found=len(filtered_results),
-        credibility_summary={
-            "high_credibility_count": len([r for r in filtered_results if r.get('credibility', 0) >= 0.8]),
-            "medium_credibility_count": len([r for r in filtered_results if 0.5 <= r.get('credibility', 0) < 0.8]),
-            "low_credibility_count": len([r for r in filtered_results if r.get('credibility', 0) < 0.5])
-        }
-    )
-    
-    # Format output for synthesis
-    formatted_output = format_research_output(research_output)
-    
-    print(f"[Research Agent] Complete - {overall_strength} evidence")
-    
-    # Return ONLY updates (don't modify state directly)
-    return {
-        # Scalar updates - replace values
-        "research_output": research_output,
+        # Step 3: Filter low-quality sources
+        quality_threshold = 0.4
+        filtered_results = [r for r in all_results if r.get('credibility', 0) >= quality_threshold]
+        print(f"[Research Agent] Found {len(filtered_results)} quality sources")
         
-        # Agent outputs
-        "agent_outputs": {
-            "researcher": formatted_output
+        # Step 4: Categorize evidence
+        categorized = categorize_evidence(filtered_results, claim, model)
+        
+        # Step 5: Extract detailed evidence
+        supporting_detailed = extract_detailed_evidence(
+            categorized['supporting'][:3], model
+        ) if categorized['supporting'] else []
+        
+        opposing_detailed = extract_detailed_evidence(
+            categorized['opposing'][:3], model
+        ) if categorized['opposing'] else []
+        
+        neutral_detailed = extract_detailed_evidence(
+            categorized['neutral'][:2], model
+        ) if categorized['neutral'] else []
+        
+        # Step 6: Determine overall strength
+        num_supporting = len(categorized['supporting'])
+        num_opposing = len(categorized['opposing'])
+        
+        if num_supporting > num_opposing * 2:
+            overall_strength = "strong_support"
+        elif num_opposing > num_supporting * 2:
+            overall_strength = "strong_opposition"
+        else:
+            overall_strength = "mixed"
+        
+        # Find strongest source
+        strongest_source = None
+        if filtered_results:
+            strongest_source = max(filtered_results, key=lambda x: x.get('credibility', 0))
+        
+        # Step 7: Create structured output
+        research_output = ResearchOutput(
+            supporting_evidence=supporting_detailed,
+            opposing_evidence=opposing_detailed,
+            neutral_evidence=neutral_detailed,
+            queries_used=queries,
+            overall_evidence_strength=overall_strength,
+            strongest_source=strongest_source,
+            total_sources_found=len(filtered_results),
+            credibility_summary={
+                "high_credibility_count": len([r for r in filtered_results if r.get('credibility', 0) >= 0.8]),
+                "medium_credibility_count": len([r for r in filtered_results if 0.5 <= r.get('credibility', 0) < 0.8]),
+                "low_credibility_count": len([r for r in filtered_results if r.get('credibility', 0) < 0.5])
+            }
+        )
+        
+        # Format output
+        formatted_output = format_research_output(research_output)
+        
+        print(f"[Research Agent] Complete - {overall_strength} evidence")
+        
+        return {
+            "research_output": research_output,
+            "agent_outputs": {
+                "researcher": formatted_output
+            }
         }
-    }
+        
+    except Exception as e:
+        print(f"[Research Agent] CRITICAL ERROR: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Return minimal fallback
+        return {
+            "research_output": None,
+            "agent_outputs": {
+                "researcher": "I encountered an error while searching for evidence. Please rephrase your claim."
+            }
+        }
 
 def format_research_output(research: ResearchOutput) -> str:
-    """Format research output into readable text for synthesis"""
+    """Format research output into readable text"""
     
     lines = []
     
-    # Overall assessment
     lines.append(f"Evidence assessment: {research.overall_evidence_strength.replace('_', ' ').title()}")
     lines.append(f"Found {research.total_sources_found} relevant sources")
     
-    # Supporting evidence
     if research.supporting_evidence:
         lines.append("\n**Supporting Evidence:**")
         for ev in research.supporting_evidence[:2]:
             lines.append(f"- {ev.source_name}: {ev.key_finding}")
-            if ev.limitations:
-                lines.append(f"  (Limitation: {ev.limitations})")
     
-    # Opposing evidence
     if research.opposing_evidence:
         lines.append("\n**Opposing Evidence:**")
         for ev in research.opposing_evidence[:2]:
             lines.append(f"- {ev.source_name}: {ev.key_finding}")
-            if ev.limitations:
-                lines.append(f"  (Limitation: {ev.limitations})")
     
-    # Strongest source
     if research.strongest_source:
         source = research.strongest_source
-        lines.append(f"\n**Most Credible Source:** {source.get('title', 'N/A')} (credibility: {source.get('credibility', 0):.2f})")
+        lines.append(f"\n**Most Credible Source:** {source.get('title', 'N/A')}")
     
     return "\n".join(lines)
-
 
 # ============================================================================
 # EXAMPLE USAGE
