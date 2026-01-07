@@ -541,39 +541,41 @@ def growth_tracker_node(state: DebateState):
     debate_ended = state.get('debate_ended', False)
     
     if not debate_ended:
-        # SILENT TRACKING MODE - just return state unchanged
+        # SILENT TRACKING MODE - return empty updates
         print("[Growth Tracker] Tracking session data silently...")
-        return state
+        return {}
     
     # FEEDBACK GENERATION MODE - debate is complete
     print("[Growth Tracker] Generating final feedback...")
-
     
-    # Load user history (mock for now - would connect to database)
+    # Load user history (READ ONLY)
     user_id = state.get('user_id', 'default_user')
     user_history = load_user_history(user_id)
     
-    # Generate feedback
+    # Generate feedback (doesn't modify state)
     feedback = generate_growth_feedback(state, user_history)
     
     print(f"[Growth Tracker] Performance: {feedback.session_summary.overall_performance}")
     print(f"[Growth Tracker] Achievements: {len(feedback.achievements)}")
     
-    # Update state with feedback
-    state['growth_feedback'] = feedback
-    
-    # Save session to history (mock - would save to database)
+    # Save session to history (side effect, not state update)
     save_session_to_history(user_id, state, feedback)
     
     # Format for display
-    if 'agent_outputs' not in state:
-        state['agent_outputs'] = {}
-    
-    state['agent_outputs']['growth_tracker'] = format_growth_output(feedback)
+    formatted_output = format_growth_output(feedback)
     
     print("[Growth Tracker] Complete")
     
-    return state
+    # Return ONLY updates
+    return {
+        # Scalar updates
+        "growth_feedback": feedback,
+        
+        # Agent outputs
+        "agent_outputs": {
+            "growth_tracker": formatted_output
+        }
+    }
 
 
 def format_growth_output(feedback: GrowthTrackerOutput) -> str:

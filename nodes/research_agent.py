@@ -408,7 +408,7 @@ def research_agent_node(state: DebateState):
     # Initialize LLM
     model = init_chat_model("gemini-2.5-flash", model_provider="google_genai", temperature=0.7)
     
-    # Extract research parameters
+    # Extract research parameters (READ ONLY - don't modify state)
     claim = state.get('user_input') or state.get('user_claim', '')
     topic = state.get('topic', '')
     search_focus = state.get('search_focus', claim)
@@ -497,18 +497,21 @@ def research_agent_node(state: DebateState):
         }
     )
     
-    # Add to agent outputs
-    if 'agent_outputs' not in state:
-        state['agent_outputs'] = {}
-
-    state['research_output'] = research_output
-    
-    state['agent_outputs']['researcher'] = format_research_output(research_output)
+    # Format output for synthesis
+    formatted_output = format_research_output(research_output)
     
     print(f"[Research Agent] Complete - {overall_strength} evidence")
     
-    return state
-
+    # Return ONLY updates (don't modify state directly)
+    return {
+        # Scalar updates - replace values
+        "research_output": research_output,
+        
+        # Agent outputs
+        "agent_outputs": {
+            "researcher": formatted_output
+        }
+    }
 
 def format_research_output(research: ResearchOutput) -> str:
     """Format research output into readable text for synthesis"""

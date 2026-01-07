@@ -436,33 +436,39 @@ def moderator_node(state: DebateState):
         
         final_response = synthesize_responses(state, model)
         
-        # Update state with response
-        state["ai_response"] = final_response
-        state["conversation_history"] = {
+        # **FIX: Create a NEW state update dict instead of mutating state directly**
+        updates = {
+            "ai_response": final_response,
+            "next_agents": ["END"],
+        }
+        
+        # Add conversation history entry (this will be accumulated via Annotated[List, add])
+        if "conversation_history" not in state:
+            state["conversation_history"] = []
+        
+        # Append to conversation history
+        conversation_entry = {
             "role": "assistant",
             "content": final_response,
             "turn": state["turn_count"]
         }
         
-        # Clear agent outputs for next turn
-        state["agent_outputs"] = {}
-        state["next_agents"] = ["END"]
-        
-        return state
+        # Return ONLY the updates, not the full state
+        return {
+            **updates,
+            "conversation_history": [conversation_entry],  # Will be added via operator
+            "agent_outputs": {}  # Clear for next turn (empty dict will reset)
+        }
     
     else:
         # ROUTING MODE: Analyze input and decide which agents to call
         print(f"[Moderator] Analyzing user input: '{state['user_input'][:50]}...'")
         
-        # Increment turn count
-        state["turn_count"] += 1
+        # **FIX: Create updates dict**
+        updates = {}
         
-        # Add user input to history
-        state["conversation_history"].append({
-            "role": "user",
-            "content": state["user_input"],
-            "turn": state["turn_count"]
-        })
+        # Increment turn count
+        updates["turn_count"] = state.get("turn_count", 0) + 1
         
         # Analyze user input with structured output
         analysis = analyze_user_input(state, model)
@@ -470,32 +476,44 @@ def moderator_node(state: DebateState):
         
         # Update skill estimate
         new_skill = calculate_skill_adjustment(analysis, state["user_skill_estimate"])
-        state["user_skill_estimate"] = new_skill
-        print(f"[Moderator] Skill estimate: {state['user_skill_estimate']:.2f}")
+        updates["user_skill_estimate"] = new_skill
+        print(f"[Moderator] Skill estimate: {updates['user_skill_estimate']:.2f}")
         
         # Update phase
-        state["current_phase"] = determine_phase(analysis, state)
+        updates["current_phase"] = determine_phase(analysis, state)
         
-        # Track claims and fallacies
+        # Track claims and fallacies (these will be accumulated)
+        claims_to_add = []
+        fallacies_to_add = []
+        
         if analysis.input_type == "claim":
-            state["user_claims"].append(state["user_input"][:100])
+            claims_to_add.append(state["user_input"][:100])
         
         if analysis.potential_fallacies:
-            state["fallacies_detected"].extend(analysis.potential_fallacies)
+            fallacies_to_add.extend(analysis.potential_fallacies)
         
         # Decide routing with structured output
         routing = decide_routing(analysis, state, model)
-        state["next_agents"] = routing.next_agents
-        state["routing_decision"] = routing.reasoning
+        updates["next_agents"] = routing.next_agents
+        updates["routing_decision"] = routing.reasoning
         
         print(f"[Moderator] Routing to: {routing.next_agents}")
         print(f"[Moderator] Reasoning: {routing.reasoning}")
         
-        # Manage context window
-        state["conversation_history"] = summarize_history(state["conversation_history"])
+        # Add user input to conversation history
+        user_entry = {
+            "role": "user",
+            "content": state["user_input"],
+            "turn": updates["turn_count"]
+        }
         
-        return state
-
+        # Return updates (lists will be accumulated via Annotated operators)
+        return {
+            **updates,
+            "conversation_history": [user_entry],
+            "user_claims": claims_to_add,
+            "fallacies_detected": fallacies_to_add
+        }
 
 # ============================================================================
 # INITIALIZATION HELPER

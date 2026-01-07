@@ -2,6 +2,9 @@ from typing import TypedDict, List, Dict, Literal, Annotated
 from operator import add
 from models.agent_models import GrowthTrackerOutput, DevilsAdvocateOutput, SocraticOutput, AnalyzerOutput, ResearchOutput
 
+def merge_dicts(left: Dict, right: Dict) -> Dict:
+    """Merge two dictionaries, with right taking precedence"""
+    return {**left, **right}
 
 class DebateState(TypedDict):
     # Session info
@@ -28,7 +31,7 @@ class DebateState(TypedDict):
     fallacies_detected: Annotated[List[str], add]
     
     # Agent orchestration
-    agent_outputs: Dict[str, str]  # {agent_name: output}
+    agent_outputs: Annotated[Dict[str, str], merge_dicts]
     next_agents: List[str]  # List of agent names to route to
     routing_decision: str  # Explanation of routing decision
 

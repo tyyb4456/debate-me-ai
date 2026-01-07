@@ -429,20 +429,20 @@ def socratic_questioner_node(state: DebateState):
 
     print("[Socratic Questioner] Generating probing questions...")
     
-    # Extract inputs
+    # Extract inputs (READ ONLY)
     user_input = state.get('user_input', '')
     analyzer_output = state.get('analyzer_output')
     research_output = state.get('research_output')
     difficulty = state.get('difficulty', 'standard')
     user_skill = state.get('user_skill_estimate', 0.5)
     conversation_history = state.get('conversation_history', [])
+    turn_count = state.get('turn_count', 0)
     
     # Extract previous questions to avoid repetition
     previous_questions = []
     for msg in conversation_history[-6:]:  # Last 3 turns
         if msg.get('role') == 'assistant':
             content = msg.get('content', '')
-            # Extract questions (lines ending with ?)
             previous_questions.extend(re.findall(r'[^.!?]+\?', content))
     
     # Identify what to question
@@ -463,29 +463,31 @@ def socratic_questioner_node(state: DebateState):
     print(f"[Socratic Questioner] Generated {len(socratic_output.questions)} questions")
     print(f"[Socratic Questioner] Focus: {socratic_output.primary_focus}")
     
-    # Update state
-    state['socratic_output'] = socratic_output
-    
-    # Track questioning patterns
-    if 'questions_asked' not in state:
-        state['questions_asked'] = []
-    
-    state['questions_asked'].append({
-        "turn": state.get('turn_count', 0),
+    # Prepare questions asked entry
+    questions_entry = {
+        "turn": turn_count,
         "focus": socratic_output.primary_focus,
         "num_questions": len(socratic_output.questions)
-    })
+    }
     
     # Format output for synthesis
-    if 'agent_outputs' not in state:
-        state['agent_outputs'] = {}
-    
-    state['agent_outputs']['socratic_questioner'] = format_socratic_output(socratic_output)
+    formatted_output = format_socratic_output(socratic_output)
     
     print("[Socratic Questioner] Complete")
     
-    return state
-
+    # Return ONLY updates
+    return {
+        # Scalar updates
+        "socratic_output": socratic_output,
+        
+        # List updates (accumulated)
+        "questions_asked": [questions_entry],
+        
+        # Agent outputs 
+        "agent_outputs": {
+            "socratic_questioner": formatted_output
+        }
+    }
 
 def format_socratic_output(output: SocraticOutput) -> str:
     """Format questions for natural synthesis"""

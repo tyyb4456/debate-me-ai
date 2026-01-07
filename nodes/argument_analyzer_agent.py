@@ -404,15 +404,14 @@ def argument_analyzer_node(state: DebateState):
     - user_skill_estimate: Updated skill estimate
     """
     
-
-    
     print("[Analyzer] Starting argument analysis...")
     
-    # Extract inputs
+    # Extract inputs (READ ONLY - don't modify state directly)
     user_input = state.get('user_input', '')
     conversation_history = state.get('conversation_history', [])
     previous_claims = state.get('user_claims', [])
-    previous_fallacies = state.get('fallacies_history', [])
+    current_skill = state.get('user_skill_estimate', 0.5)
+    turn_count = state.get('turn_count', 0)
     
     # Run analysis
     analyzer_output = analyze_argument(
@@ -425,50 +424,48 @@ def argument_analyzer_node(state: DebateState):
     print(f"[Analyzer] Detected {len(analyzer_output.fallacies_detected)} fallacies")
     print(f"[Analyzer] Argument strength: {analyzer_output.argument_strength.overall_score}/10")
     
-    # Update state with analysis
-    state['analyzer_output'] = analyzer_output
-    
     # Extract main claim
     if analyzer_output.claims:
         main_claim = next((c for c in analyzer_output.claims if c.type == "main_claim"), None)
-        state['user_claim'] = main_claim.text if main_claim else analyzer_output.claims[0].text
+        user_claim = main_claim.text if main_claim else analyzer_output.claims[0].text
     else:
-        state['user_claim'] = user_input[:100]
+        user_claim = user_input[:100]
     
-    # Add to claims history
-    if 'user_claims' not in state:
-        state['user_claims'] = []
-    state['user_claims'].append(state['user_claim'])
-    
-    # Track fallacies
-    # if 'fallacies_history' not in state:
-    #     state['fallacies_history'] = []
-    
-    for fallacy in analyzer_output.fallacies_detected:
-        state['fallacies_history'].append({
-            "turn": state.get('turn_count', 0),
+    # Prepare fallacies to add to history
+    fallacies_to_add = [
+        {
+            "turn": turn_count,
             "fallacy": fallacy.type,
             "severity": fallacy.severity
-        })
+        }
+        for fallacy in analyzer_output.fallacies_detected
+    ]
     
     # Update skill estimate based on argument quality
-    current_skill = state.get('user_skill_estimate', 0.5)
     argument_quality = analyzer_output.argument_strength.overall_score / 10.0
-    
-    # Moving average: 80% previous skill, 20% current performance
     new_skill = (current_skill * 0.8) + (argument_quality * 0.2)
-    state['user_skill_estimate'] = new_skill
     
-    # Add formatted output for other agents
-    if 'agent_outputs' not in state:
-        state['agent_outputs'] = {}
-    
-    state['agent_outputs']['analyzer'] = format_analyzer_output(analyzer_output)
+    # Format output for synthesis
+    formatted_output = format_analyzer_output(analyzer_output)
     
     print(f"[Analyzer] Analysis complete - Skill estimate: {new_skill:.2f}")
     
-    return state
-
+    # Return ONLY updates (don't modify state directly)
+    return {
+        # Scalar updates (replace values)
+        "analyzer_output": analyzer_output,
+        "user_claim": user_claim,
+        "user_skill_estimate": new_skill,
+        
+        # List updates (will be accumulated via Annotated[List, add])
+        "user_claims": [user_claim],  # Add this claim to history
+        "fallacies_history": fallacies_to_add,  # Add detected fallacies
+        
+        # Agent outputs
+        "agent_outputs": {
+            "analyzer": formatted_output
+        }
+    }
 
 def format_analyzer_output(analysis: AnalyzerOutput) -> str:
     """Format analyzer output for synthesis"""

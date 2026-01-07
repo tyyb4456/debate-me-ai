@@ -480,10 +480,9 @@ def devils_advocate_node(state: DebateState):
     - agent_outputs['devils_advocate']: Formatted output
     """
     
-    
     print("[Devil's Advocate] Generating counter-arguments...")
     
-    # Extract inputs
+    # Extract inputs (READ ONLY)
     user_claim = state.get('user_claim', state.get('user_input', ''))
     topic = state.get('topic', '')
     analyzer_output = state.get('analyzer_output')
@@ -525,30 +524,32 @@ def devils_advocate_node(state: DebateState):
     
     print(f"[Devil's Advocate] Generated {len(advocate_output.counter_arguments)} counter-arguments")
     
-    # Update state
-    state['advocate_output'] = advocate_output
-    
-    # Track AI's counter-positions
-    if 'ai_claims_history' not in state:
-        state['ai_claims_history'] = []
-    
+    # Prepare AI claims history entry
     strong_counters = len([c for c in advocate_output.counter_arguments if c.strength == "strong"])
-    state['ai_claims_history'].append({
+    ai_claim_entry = {
         "turn": turn_count,
         "position": advocate_output.opposing_position.statement,
         "strength": strong_counters
-    })
+    }
     
     # Format output for synthesis
-    if 'agent_outputs' not in state:
-        state['agent_outputs'] = {}
-    
-    state['agent_outputs']['devils_advocate'] = format_advocate_output(advocate_output)
+    formatted_output = format_advocate_output(advocate_output)
     
     print("[Devil's Advocate] Complete")
     
-    return state
-
+    # Return ONLY updates (don't modify state directly)
+    return {
+        # Scalar updates (replace values)
+        "advocate_output": advocate_output,
+        
+        # List updates (will be accumulated via Annotated[List, add])
+        "ai_claims_history": [ai_claim_entry],  # Add this counter-position to history
+        
+        # Agent outputs
+        "agent_outputs": {
+            "devils_advocate": formatted_output
+        }
+    }
 
 def format_advocate_output(output: DevilsAdvocateOutput) -> str:
     """Format counter-arguments for natural synthesis"""
