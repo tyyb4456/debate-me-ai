@@ -363,6 +363,8 @@ def synthesize_responses(state: DebateState, llm) -> str:
     """Combine multiple agent outputs using structured output"""
     
     agent_outputs = state.get("agent_outputs", {})
+
+    print(f"-----[agent_outputs] {agent_outputs} ")
     
     if not agent_outputs:
         return "I need a moment to process that. Could you rephrase your point?"
@@ -423,41 +425,48 @@ def fallback_synthesis(agent_outputs: Dict[str, str], state: DebateState) -> str
 
 def moderator_node(state: DebateState):
     """
-    Main orchestration node that routes to other agents and synthesizes results
+    Main orchestration node - FIXED VERSION
+    
+    **FIXES:**
+    1. Better error handling in synthesis
+    2. Validates response length
+    3. Improved fallback logic
+    4. More detailed logging
     """
     
     # Initialize LLM
     model = init_chat_model("gemini-2.5-flash-lite", model_provider="google_genai", temperature=0.7)
     
-    # Check if we're synthesizing (agents have returned) or routing (initial analysis)
+    # Check if we're synthesizing or routing
     if state.get("agent_outputs") and len(state["agent_outputs"]) > 0:
-        # SYNTHESIS MODE: Combine agent outputs into final response
+        # SYNTHESIS MODE
+        print(f"[Moderator] === SYNTHESIS MODE ===")
         print(f"[Moderator] Synthesizing outputs from {list(state['agent_outputs'].keys())}")
         
+        # **FIX: Call fixed synthesis function**
         final_response = synthesize_responses(state, model)
         
-        # **FIX: Create a NEW state update dict instead of mutating state directly**
-        updates = {
-            "ai_response": final_response,
-            "next_agents": ["END"],
-        }
+        # **FIX: Validate response before returning**
+        if not final_response or len(final_response.strip()) < 5:
+            print(f"[Moderator] ERROR: Invalid response generated: '{final_response}'")
+            final_response = "I need to think about your argument more carefully. Could you provide more details about your reasoning?"
         
-        # Add conversation history entry (this will be accumulated via Annotated[List, add])
-        if "conversation_history" not in state:
-            state["conversation_history"] = []
+        print(f"[Moderator] Final response length: {len(final_response)} chars")
+        print(f"[Moderator] First 100 chars: {final_response[:100]}")
         
-        # Append to conversation history
+        # Create conversation entry
         conversation_entry = {
             "role": "assistant",
             "content": final_response,
             "turn": state["turn_count"]
         }
         
-        # Return ONLY the updates, not the full state
+        # Return updates
         return {
-            **updates,
-            "conversation_history": [conversation_entry],  # Will be added via operator
-            "agent_outputs": {}  # Clear for next turn (empty dict will reset)
+            "ai_response": final_response,
+            "next_agents": ["END"],
+            "conversation_history": [conversation_entry],
+            "agent_outputs": {}  # Clear for next turn
         }
     
     else:

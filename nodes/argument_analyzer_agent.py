@@ -447,6 +447,8 @@ def argument_analyzer_node(state: DebateState):
     
     # Format output for synthesis
     formatted_output = format_analyzer_output(analyzer_output)
+
+    print(f"[Analyzer] agent output {formatted_output}")
     
     print(f"[Analyzer] Analysis complete - Skill estimate: {new_skill:.2f}")
     
