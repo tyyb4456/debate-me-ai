@@ -52,15 +52,6 @@ class RoutingDecision(BaseModel):
     )
 
 
-class SynthesizedResponse(BaseModel):
-    """Schema for final synthesized response"""
-    response: str = Field(
-        description="The complete, natural-flowing response to the user"
-    )
-    tone: Literal["supportive", "challenging", "neutral", "probing"] = Field(
-        description="The tone used in the response"
-    )
-
 
 # ============================================================================
 # SYSTEM PROMPTS
@@ -364,11 +355,12 @@ def synthesize_responses(state: DebateState, llm) -> str:
     
     agent_outputs = state.get("agent_outputs", {})
     
-    if not agent_outputs:
-        return "I need a moment to process that. Could you rephrase your point?"
+    print(f"[Moderator Synthesis] Received agent_outputs: {list(agent_outputs.keys())}")
+    print(f"[Moderator Synthesis] Total outputs: {len(agent_outputs)}")
     
-    # Create structured LLM
-    structured_llm = llm.with_structured_output(SynthesizedResponse)
+    if not agent_outputs:
+        print("[Moderator Synthesis] WARNING: No agent outputs found!")
+        return "I need a moment to process that. Could you rephrase your point?"
     
     # Format agent outputs nicely
     formatted_outputs = "\n\n".join([

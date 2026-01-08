@@ -147,11 +147,29 @@ async def stream_debate_response(
         agents_executed = set()
         current_node = None
         accumulated_response = ""
+
+        # Track accumulated state
+        accumulated_state = state.copy()
         
         # Stream through LangGraph workflow
         async for chunk in debate_workflow.astream(state, config=config, stream_mode="updates"):
             
             for node_name, node_state in chunk.items():
+
+                # MERGE state updates
+                for key, value in node_state.items():
+                    if key in accumulated_state:
+                        if isinstance(value, dict) and key == "agent_outputs":
+                            # Accumulate agent outputs
+                            accumulated_state[key].update(value)
+                        elif isinstance(value, list):
+                            # Accumulate lists
+                            accumulated_state[key].extend(value)
+                        else:
+                            # Replace scalars
+                            accumulated_state[key] = value
+                    else:
+                        accumulated_state[key] = value
                 
                 if node_name != current_node:
                     current_node = node_name
