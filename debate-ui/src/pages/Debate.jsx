@@ -130,19 +130,20 @@ function Debate() {
   }, [currentStream]);
 
   return (
-    <div className="h-screen bg-gray-900 flex flex-col">
+    <div className="h-screen bg-gray-50 flex flex-col">
+
       {/* Header */}
-      <div className="bg-gray-800 border-b border-gray-700 p-4">
+      <div className="bg-white border-b border-gray-200 p-4 shadow-sm">
         <div className="max-w-4xl mx-auto flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-white">{topic}</h2>
-            <p className="text-gray-400 text-sm">
-              Difficulty: {difficulty} | Turn: {Math.floor(messages.length / 2)}
+            <h2 className="text-2xl font-bold text-gray-900">{topic}</h2>
+            <p className="text-gray-500 text-sm mt-1">
+              Difficulty: <span className="font-medium">{difficulty}</span> | Turn: <span className="font-medium">{Math.floor(messages.length / 2)}</span>
             </p>
           </div>
           <button
             onClick={handleEndDebate}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            className="px-4 py-2 bg-orange-400 text-white rounded-lg hover:bg-orange-500 transition"
           >
             End Debate
           </button>
@@ -155,7 +156,7 @@ function Debate() {
       </div>
 
       {/* Input */}
-      <div className="max-w-4xl w-full mx-auto">
+      <div className="max-w-4xl w-full mx-auto border-t border-gray-200">
         <InputArea onSendMessage={handleSendMessage} disabled={isLoading} />
       </div>
 
