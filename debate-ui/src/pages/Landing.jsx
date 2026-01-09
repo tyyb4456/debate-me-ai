@@ -1,13 +1,13 @@
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { debateService } from '../services/debateService';
-import { motion } from 'framer-motion';
 
 function Landing() {
-  const navigate = useNavigate();
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('standard');
   const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handleStartDebate = async () => {
     if (!topic.trim()) return alert('Please enter a topic');
@@ -49,11 +49,15 @@ function Landing() {
 
   const headingWords = ['Sharpen', 'your', 'arguments'];
 
-
   return (
-    <div className="min-h-screen bg-white">
-      <section className="max-w-7xl mx-auto px-6 py-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+    <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-96 h-96 bg-gray-200/30 rounded-full blur-3xl animate-pulse" />
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-gray-300/20 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      </div>
 
+      <section className="relative max-w-7xl mx-auto px-6 py-24 grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
         {/* LEFT */}
         <motion.div
           initial={{ opacity: 0, y: 40 }}
@@ -64,8 +68,9 @@ function Landing() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.2 }}
-            className="inline-block mb-4 px-3 py-1 text-sm font-medium 
-                       bg-gray-100 text-gray-700 rounded-full"
+            className="inline-block mb-4 px-4 py-2 text-sm font-medium 
+                       backdrop-blur-xl bg-white/40 text-gray-700 rounded-full
+                       border border-white/60 shadow-lg"
           >
             AI-Powered Debate Training
           </motion.span>
@@ -74,7 +79,7 @@ function Landing() {
             variants={container}
             initial="hidden"
             animate="visible"
-            className="text-4xl lg:text-5xl leading-tight"
+            className="text-5xl lg:text-6xl leading-tight"
           >
             <span className="block">
               {headingWords.map((w, i) => (
@@ -82,7 +87,7 @@ function Landing() {
                   key={i}
                   variants={word}
                   className="inline-block mr-3 font-extrabold 
-                   bg-linear-to-r from-gray-900 via-gray-700 to-gray-500
+                   bg-linear-to-r from-gray-900 via-gray-700 to-gray-600
                    bg-clip-text text-transparent"
                 >
                   {w}
@@ -94,19 +99,17 @@ function Landing() {
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="block mt-2 font-medium text-gray-600"
+              className="block mt-2 font-semibold text-gray-600"
             >
               against an intelligent AI
             </motion.span>
           </motion.h1>
 
-
-
           <motion.p
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
-            className="mt-6 text-lg text-gray-500 max-w-xl"
+            className="mt-6 text-lg text-gray-600 max-w-xl leading-relaxed"
           >
             Train logical reasoning, identify fallacies, and improve debate
             performance through real-time AI feedback.
@@ -120,9 +123,13 @@ function Landing() {
             type="text"
             value={topic}
             onChange={(e) => setTopic(e.target.value)}
-            placeholder="Enter a debate topic"
-            className="mt-8 w-full max-w-xl px-4 py-3 border border-gray-300 rounded-lg
-                       focus:outline-none focus:ring-2 focus:ring-gray-900"
+            placeholder="Enter a debate topic..."
+            className="mt-8 w-full max-w-xl px-5 py-4 
+                       backdrop-blur-xl bg-white/60 border border-white/80
+                       rounded-2xl shadow-xl
+                       focus:outline-none focus:ring-2 focus:ring-gray-400/50
+                       placeholder-gray-500 text-gray-900 font-medium
+                       transition-all duration-300"
           />
 
           {/* DIFFICULTY */}
@@ -130,18 +137,19 @@ function Landing() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.6 }}
-            className="mt-4 flex gap-3"
+            className="mt-5 flex gap-3"
           >
             {['casual', 'standard', 'expert'].map((level) => (
               <motion.button
                 key={level}
-                whileHover={{ scale: 1.05 }}
+                whileHover={{ scale: 1.05, y: -2 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setDifficulty(level)}
-                className={`px-4 py-2 rounded-lg text-sm font-medium border transition
+                className={`px-5 py-2.5 rounded-xl text-sm font-semibold 
+                  backdrop-blur-xl border transition-all duration-300 shadow-lg
                   ${difficulty === level
-                    ? 'bg-gray-900 text-white border-gray-900'
-                    : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'
+                    ? 'bg-gray-900/90 text-white border-gray-800 shadow-2xl'
+                    : 'bg-white/50 text-gray-700 border-white/70 hover:bg-white/70'
                   }`}
               >
                 {level.charAt(0).toUpperCase() + level.slice(1)}
@@ -151,15 +159,18 @@ function Landing() {
 
           {/* CTA */}
           <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
+            whileHover={{ scale: 1.02, y: -2 }}
+            whileTap={{ scale: 0.98 }}
             onClick={handleStartDebate}
             disabled={loading}
-            className="mt-6 w-full max-w-xl py-3 rounded-lg bg-gray-600 text-white 
-                       font-semibold hover:bg-gray-800 transition
-                       disabled:opacity-50"
+            className="mt-6 w-full max-w-xl py-4 rounded-2xl 
+                       bg-linear-to-r from-gray-800 to-gray-900 text-white 
+                       font-bold text-lg shadow-2xl
+                       hover:shadow-gray-900/50 transition-all duration-300
+                       disabled:opacity-50 disabled:cursor-not-allowed
+                       backdrop-blur-xl border border-gray-700"
           >
-            {loading ? 'Starting…' : 'Start Debate'}
+            {loading ? 'Starting...' : 'Start Debate →'}
           </motion.button>
         </motion.div>
 
@@ -170,38 +181,84 @@ function Landing() {
           transition={{ delay: 0.4, duration: 0.8 }}
           className="relative"
         >
-          <div className="absolute -inset-4 bg-linear-to-tr 
-                          from-gray-100 to-gray-200 rounded-2xl blur-2xl opacity-70" />
+          <div className="absolute -inset-6 bg-linear-to-tr 
+                          from-gray-200/50 to-gray-300/30 rounded-3xl blur-3xl" />
 
           <motion.div
-            animate={{ y: [0, -6, 0] }}
+            animate={{ y: [0, -8, 0] }}
             transition={{ repeat: Infinity, duration: 6, ease: 'easeInOut' }}
-            className="relative bg-white border border-gray-200 
-                       rounded-2xl shadow-xl p-6"
+            className="relative backdrop-blur-2xl bg-white/70 border border-white/80
+                       rounded-3xl shadow-2xl p-8"
           >
-            <div className="text-sm text-gray-500 mb-3">
-              Live Debate Session
+            <div className="flex items-center justify-between mb-6">
+              <div className="text-sm font-semibold text-gray-600 
+                            backdrop-blur-xl bg-gray-100/60 px-4 py-2 rounded-full">
+                💬 Live Debate Session
+              </div>
+              <div className="flex gap-2">
+                <div className="w-3 h-3 rounded-full bg-green-500 animate-pulse" />
+                <div className="w-3 h-3 rounded-full bg-yellow-500 animate-pulse" style={{ animationDelay: '0.3s' }} />
+                <div className="w-3 h-3 rounded-full bg-red-500 animate-pulse" style={{ animationDelay: '0.6s' }} />
+              </div>
             </div>
 
             <div className="space-y-4">
-              <div className="p-4 bg-gray-50 rounded-lg">
-                <p className="font-medium text-gray-900">AI Opponent</p>
-                <p className="text-gray-600 text-sm mt-1">
+              <motion.div 
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.8 }}
+                className="p-5 backdrop-blur-xl bg-gray-100/70 rounded-2xl 
+                          border border-gray-200/50 shadow-lg"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-linear-to-br from-gray-600 to-gray-800 
+                                flex items-center justify-center text-white text-sm font-bold">
+                    AI
+                  </div>
+                  <p className="font-bold text-gray-900">AI Opponent</p>
+                </div>
+                <p className="text-gray-700 text-sm leading-relaxed">
                   Your claim assumes incentives are purely economic.
-                  Can you support that?
+                  Can you support that assumption?
                 </p>
-              </div>
+              </motion.div>
 
-              <div className="p-4 bg-gray-900 rounded-lg text-white ml-8">
-                <p className="font-medium">You</p>
-                <p className="text-sm mt-1">
-                  Motivation also includes social recognition and autonomy.
+              <motion.div 
+                initial={{ x: 20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 1 }}
+                className="p-5 backdrop-blur-xl bg-linear-to-br from-gray-800 to-gray-900
+                          rounded-2xl ml-8 shadow-2xl border border-gray-700"
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-full bg-white/20 
+                                flex items-center justify-center text-white text-sm font-bold">
+                    U
+                  </div>
+                  <p className="font-bold text-white">You</p>
+                </div>
+                <p className="text-gray-200 text-sm leading-relaxed">
+                  Motivation also includes social recognition and autonomy...
                 </p>
-              </div>
+              </motion.div>
             </div>
+
+            {/* Typing indicator */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 1.2 }}
+              className="mt-4 flex items-center gap-2 text-gray-500 text-sm"
+            >
+              <div className="flex gap-1">
+                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" />
+                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.1s' }} />
+                <div className="w-2 h-2 rounded-full bg-gray-400 animate-bounce" style={{ animationDelay: '0.2s' }} />
+              </div>
+              <span className="font-medium">AI is analyzing...</span>
+            </motion.div>
           </motion.div>
         </motion.div>
-
       </section>
     </div>
   );

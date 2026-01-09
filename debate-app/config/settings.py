@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     ANTHROPIC_API_KEY: str = ""
     
     # CORS - Fixed: Use string parsing instead of JSON
-    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://localhost:8080"
+    CORS_ORIGINS: str = "http://localhost:3000,http://localhost:5173,http://localhost:5174"
     
     # Logging
     LOG_LEVEL: str = "INFO"
