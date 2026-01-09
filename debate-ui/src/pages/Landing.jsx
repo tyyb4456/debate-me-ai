@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { debateService } from '../services/debateService';
+import PreviousDebatesSidebar from '../components/PreviousDebatesSidebar';
 
 function Landing() {
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('standard');
   const [loading, setLoading] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
 
   const handleStartDebate = async () => {
@@ -49,8 +51,34 @@ function Landing() {
 
   const headingWords = ['Sharpen', 'your', 'arguments'];
 
+  const handleSelectDebate = (debate) => {
+    navigate(`/debate/${debate.sessionId}`, {
+      state: { 
+        topic: debate.topic, 
+        difficulty: debate.difficulty,
+        isResume: true 
+      },
+    });
+  };
+
   return (
     <div className="min-h-screen bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden">
+
+            <motion.button
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.95 }}
+        onClick={() => setIsSidebarOpen(true)}
+        className="fixed top-6 right-6 z-30 px-5 py-3 rounded-xl
+                   backdrop-blur-xl bg-white/60 border border-white/80
+                   text-gray-700 font-semibold shadow-lg
+                   hover:shadow-xl transition-all duration-300"
+      >
+        <svg className="w-5 h-5 inline-block mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} 
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+        </svg>
+        Previous Debates
+      </motion.button>
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-20 left-10 w-96 h-96 bg-gray-200/30 rounded-full blur-3xl animate-pulse" />
@@ -260,6 +288,12 @@ function Landing() {
           </motion.div>
         </motion.div>
       </section>
+
+            <PreviousDebatesSidebar
+        isOpen={isSidebarOpen}
+        onClose={() => setIsSidebarOpen(false)}
+        onSelectDebate={handleSelectDebate}
+      />
     </div>
   );
 }

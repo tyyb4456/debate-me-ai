@@ -26,10 +26,10 @@ debate_workflow = create_debate_workflow()
 # ============================================================================
 # FIXED: Load State from Database
 # ============================================================================
-
 async def load_debate_state(session_id: str, db: AsyncSession) -> Dict[str, Any]:
     """
     CRITICAL FIX: Load existing state instead of creating new
+    WITH BETTER DEBUGGING
     """
     
     # Get debate session
@@ -49,7 +49,32 @@ async def load_debate_state(session_id: str, db: AsyncSession) -> Dict[str, Any]
     )
     turns = result.scalars().all()
     
+    # ============================================================================
+    # BETTER DEBUGGING - Print actual turn data
+    # ============================================================================
+    print(f"\n{'='*60}")
+    print(f"[LOAD STATE] Session ID: {session_id}")
+    print(f"[LOAD STATE] Topic: {debate.topic}")
+    print(f"[LOAD STATE] Difficulty: {debate.difficulty}")
+    print(f"[LOAD STATE] Total Turns Found: {len(turns)}")
+    print(f"{'='*60}\n")
+    
+    if turns:
+        for i, turn in enumerate(turns, 1):
+            print(f"Turn {i}:")
+            print(f"  Turn Number: {turn.turn_number}")
+            print(f"  User Input: {turn.user_input[:50]}..." if len(turn.user_input) > 50 else f"  User Input: {turn.user_input}")
+            print(f"  AI Response: {turn.ai_response[:50]}..." if len(turn.ai_response) > 50 else f"  AI Response: {turn.ai_response}")
+            print(f"  User Skill: {turn.user_skill_at_turn}")
+            print(f"  Argument Strength: {turn.argument_strength}")
+            print(f"  Timestamp: {turn.timestamp}")
+            print()
+    else:
+        print("[LOAD STATE] ⚠️  No previous turns found - This is a new debate session\n")
+    
+    # ============================================================================
     # Reconstruct conversation history
+    # ============================================================================
     conversation_history = []
     for turn in turns:
         conversation_history.append({
@@ -63,8 +88,14 @@ async def load_debate_state(session_id: str, db: AsyncSession) -> Dict[str, Any]
             "turn": turn.turn_number
         })
     
+    print(f"[LOAD STATE] Conversation History Length: {len(conversation_history)} messages")
+    print(f"[LOAD STATE] Last User Skill Estimate: {turns[-1].user_skill_at_turn if turns else 0.5}")
+    print(f"{'='*60}\n")
+    
+    # ============================================================================
     # Build state from database
-    return {
+    # ============================================================================
+    state = {
         "session_id": session_id,
         "user_id": str(debate.user_id),
         "topic": debate.topic,
@@ -101,6 +132,137 @@ async def load_debate_state(session_id: str, db: AsyncSession) -> Dict[str, Any]
         "next_agents": [],
         "routing_decision": ""
     }
+    
+    return state
+
+
+# ============================================================================
+# ALTERNATIVE: Even More Detailed Debugging
+# ============================================================================
+
+async def load_debate_state_verbose(session_id: str, db: AsyncSession) -> Dict[str, Any]:
+    """
+    Version with MAXIMUM debugging info
+    """
+    
+    logger.info(f"{'='*80}")
+    logger.info(f"LOADING DEBATE STATE - Session: {session_id}")
+    logger.info(f"{'='*80}")
+    
+    # Get debate session
+    result = await db.execute(
+        select(DebateSession).where(DebateSession.session_id == session_id)
+    )
+    debate = result.scalar_one_or_none()
+    
+    if not debate:
+        logger.error(f"❌ Debate session {session_id} not found in database")
+        raise HTTPException(status_code=404, detail="Debate session not found")
+    
+    logger.info(f"Found debate session:")
+    logger.info(f"   Topic: {debate.topic}")
+    logger.info(f"   Difficulty: {debate.difficulty}")
+    logger.info(f"   Status: {debate.status}")
+    logger.info(f"   Started: {debate.started_at}")
+    logger.info(f"   User ID: {debate.user_id}")
+    
+    # Get all previous turns
+    result = await db.execute(
+        select(Turn)
+        .where(Turn.session_id == session_id)
+        .order_by(Turn.turn_number)
+    )
+    turns = result.scalars().all()
+    
+    logger.info(f"\nTurn Statistics:")
+    logger.info(f"   Total Turns: {len(turns)}")
+    
+    if turns:
+        logger.info(f"   First Turn: {turns[0].turn_number} at {turns[0].timestamp}")
+        logger.info(f"   Last Turn: {turns[-1].turn_number} at {turns[-1].timestamp}")
+        logger.info(f"   Current Skill Estimate: {turns[-1].user_skill_at_turn:.3f}")
+        
+        # Analyze turn quality
+        strengths = [t.argument_strength for t in turns if t.argument_strength is not None]
+        if strengths:
+            avg_strength = sum(strengths) / len(strengths)
+            logger.info(f"   Average Argument Strength: {avg_strength:.2f}/10")
+        
+        # Count analyzer outputs
+        with_analyzer = sum(1 for t in turns if t.analyzer_output is not None)
+        with_research = sum(1 for t in turns if t.research_output is not None)
+        
+        logger.info(f"\n Agent Activity:")
+        logger.info(f"   Turns with Analyzer: {with_analyzer}/{len(turns)}")
+        logger.info(f"   Turns with Research: {with_research}/{len(turns)}")
+        
+        # Show recent turns
+        logger.info(f"\n  Recent Conversation:")
+        for turn in turns[-3:]:  # Last 3 turns
+            logger.info(f"\n   Turn {turn.turn_number}:")
+            logger.info(f"   👤 User: {turn.user_input[:80]}...")
+            logger.info(f"   🤖 AI: {turn.ai_response[:80]}...")
+    else:
+        logger.warning(f"  No previous turns found - Starting fresh debate")
+    
+    # Reconstruct conversation history
+    conversation_history = []
+    for turn in turns:
+        conversation_history.append({
+            "role": "user",
+            "content": turn.user_input,
+            "turn": turn.turn_number
+        })
+        conversation_history.append({
+            "role": "assistant",
+            "content": turn.ai_response,
+            "turn": turn.turn_number
+        })
+    
+    logger.info(f"\nReconstructed Conversation History: {len(conversation_history)} messages")
+    logger.info(f"{'='*80}\n")
+    
+    # Build state from database
+    state = {
+        "session_id": session_id,
+        "user_id": str(debate.user_id),
+        "topic": debate.topic,
+        "difficulty": debate.difficulty,
+        "turn_count": len(turns),
+        "debate_ended": debate.status != "active",
+        
+        "user_input": "",
+        "user_claim": "",
+        "ai_response": None,
+        
+        "analyzer_output": None,
+        "research_output": None,
+        "socratic_output": None,
+        "advocate_output": None,
+        "growth_feedback": None,
+        
+        "agent_outputs": {},
+        "conversation_history": conversation_history,
+        
+        "user_claims": [],
+        "ai_claims": [],
+        "conceded_points": [],
+        "fallacies_detected": [],
+        "current_phase": "opening" if len(turns) <= 2 else "rebuttal",
+        
+        "user_claims_history": [],
+        "fallacies_history": [],
+        "questions_asked": [],
+        "ai_claims_history": [],
+        
+        "user_skill_estimate": turns[-1].user_skill_at_turn if turns else 0.5,
+        "routing_phase": "initial",
+        "next_agents": [],
+        "routing_decision": ""
+    }
+    
+    return state
+
 
 
 # ============================================================================

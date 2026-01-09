@@ -16,13 +16,16 @@ router = APIRouter()
 
 
 @router.get("/{user_id}/history", response_model=DebateHistoryResponse)
-async def get_user_history(
+async def get_user_history_optimized(
     user_id: str,
     limit: int = Query(10, ge=1, le=100),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get user's debate history with pagination"""
+    """
+    Optimized version using a single query with subqueries
+    Better performance for users with many debates
+    """
     
     # Get user
     result = await db.execute(select(User).where(User.user_id == user_id))
@@ -31,29 +34,65 @@ async def get_user_history(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Get debates
+    # Subquery to get turn counts per session
+    turn_counts = (
+        select(
+            Turn.session_id,
+            func.count(Turn.turn_id).label('turn_count'),
+            func.max(Turn.turn_number).label('max_turn')
+        )
+        .group_by(Turn.session_id)
+        .subquery()
+    )
+    
+    # Main query joining debates with turn counts
     result = await db.execute(
-        select(DebateSession)
+        select(DebateSession, turn_counts.c.turn_count)
+        .outerjoin(turn_counts, DebateSession.session_id == turn_counts.c.session_id)
         .where(DebateSession.user_id == user_id)
         .order_by(desc(DebateSession.started_at))
         .limit(limit)
         .offset(offset)
     )
-    debates = result.scalars().all()
     
-    # Format response
-    debate_items = [
-        DebateHistoryItem(
-            session_id=d.session_id,
-            topic=d.topic,
-            difficulty=d.difficulty,
-            started_at=d.started_at,
-            ended_at=d.ended_at,
-            total_turns=d.total_turns,
-            performance=d.overall_performance
+    debates_with_counts = result.all()
+    
+    # Get latest skills for all sessions in batch
+    debate_items = []
+    
+    for debate, turn_count in debates_with_counts:
+        # Get latest turn for this session
+        latest_turn_result = await db.execute(
+            select(Turn.user_skill_at_turn)
+            .where(Turn.session_id == debate.session_id)
+            .order_by(desc(Turn.turn_number))
+            .limit(1)
         )
-        for d in debates
-    ]
+        latest_skill = latest_turn_result.scalar_one_or_none()
+        
+        # Calculate performance
+        performance = None
+        if latest_skill is not None:
+            if latest_skill >= 0.8:
+                performance = "excellent"
+            elif latest_skill >= 0.65:
+                performance = "good"
+            elif latest_skill >= 0.45:
+                performance = "fair"
+            else:
+                performance = "poor"
+        
+        debate_items.append(
+            DebateHistoryItem(
+                session_id=debate.session_id,
+                topic=debate.topic,
+                difficulty=debate.difficulty,
+                started_at=debate.started_at,
+                ended_at=debate.ended_at,
+                total_turns=turn_count or 0,
+                performance=performance
+            )
+        )
     
     return DebateHistoryResponse(
         user_id=str(user_id),

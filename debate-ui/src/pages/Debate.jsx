@@ -135,6 +135,30 @@ function Debate() {
     };
   }, [currentStream]);
 
+  useEffect(() => {
+    if (location.state?.isResume) {
+      loadPreviousMessages();
+    }
+  }, []);
+
+  const loadPreviousMessages = async () => {
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8001/api/user/debate/${sessionId}/turns`
+      );
+      const data = await response.json();
+      
+      const loadedMessages = data.turns.flatMap(turn => [
+        { role: 'user', content: turn.user_input },
+        { role: 'assistant', content: turn.ai_response }
+      ]);
+      
+      setMessages(loadedMessages);
+    } catch (error) {
+      console.error('Error loading previous messages:', error);
+    }
+  };
+
   return (
     <div className="h-screen bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden flex flex-col">
       {/* Animated background */}
