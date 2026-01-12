@@ -1,7 +1,10 @@
+// debate-ui/src/pages/Debate.jsx - UPDATED VERSION
+
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { debateService, DebateStream } from '../services/debateService';
+import AgentInsightsPanel from '../components/AgentInsightsPanel';
 
 function Debate() {
   const { sessionId } = useParams();
@@ -14,13 +17,56 @@ function Debate() {
   const [feedback, setFeedback] = useState(null);
   const [currentStream, setCurrentStream] = useState(null);
 
+  // ========================================================================
+  // NEW: Agent Outputs State
+  // ========================================================================
+  const [agentOutputs, setAgentOutputs] = useState({
+    analyzer: null,
+    researcher: null,
+    socratic_questioner: null,
+    devils_advocate: null,
+  });
+  
+  const [currentAgent, setCurrentAgent] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
+
   const topic = location.state?.topic || 'Debate Topic';
   const difficulty = location.state?.difficulty || 'standard';
 
+  // ========================================================================
+  // Load Previous Messages on Resume
+  // ========================================================================
+  useEffect(() => {
+    if (location.state?.isResume) {
+      loadPreviousMessages();
+    }
+  }, []);
+
+  const loadPreviousMessages = async () => {
+    try {
+      const response = await fetch(
+        `http://127.0.0.1:8001/api/user/debate/${sessionId}/turns`
+      );
+      const data = await response.json();
+      
+      const loadedMessages = data.turns.flatMap(turn => [
+        { role: 'user', content: turn.user_input },
+        { role: 'assistant', content: turn.ai_response }
+      ]);
+      
+      setMessages(loadedMessages);
+    } catch (error) {
+      console.error('Error loading previous messages:', error);
+    }
+  };
+
+  // ========================================================================
+  // Send Message with Enhanced Streaming
+  // ========================================================================
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
 
-    // Add user message immediately
+    // Add user message
     const userMessage = {
       role: 'user',
       content: input,
@@ -38,13 +84,21 @@ function Debate() {
     };
     setMessages((prev) => [...prev, aiMessage]);
 
+    // Reset agent outputs for new turn
+    setAgentOutputs({
+      analyzer: null,
+      researcher: null,
+      socratic_questioner: null,
+      devils_advocate: null,
+    });
+
     try {
-      // Use streaming
-      const stream = new DebateStream(
-        sessionId,
-        userInput,
-        // On token received
-        (token) => {
+      // ====================================================================
+      // ENHANCED: Use new streaming with all callbacks
+      // ====================================================================
+      const stream = new DebateStream(sessionId, userInput, {
+        // Token callback (word-by-word AI response)
+        onToken: (token) => {
           setMessages((prev) => {
             const newMessages = [...prev];
             newMessages[aiMessageIndex] = {
@@ -54,22 +108,67 @@ function Debate() {
             return newMessages;
           });
         },
-        // On complete
-        (data) => {
+
+        // Status callback (which agent is working)
+        onStatus: (data) => {
+          console.log('[Status]', data);
+          setCurrentAgent(data.agent);
+          setStatusMessage(data.message);
+        },
+
+        // Agent output callback ⭐ THIS IS THE KEY ONE!
+        onAgentOutput: (agent, output) => {
+          // FILTER: Ignore the __clear__ marker
+          if (agent === '__clear__') {
+            console.log('[Agent Output] Skipping __clear__ marker');
+            return;
+          }
+          
+          
+          // PARSE: If output is a JSON string, parse it
+          let parsedOutput = output;
+          if (typeof output === 'string') {
+            try {
+              parsedOutput = JSON.parse(output);
+              console.log('Parsed JSON string to object');
+            } catch (e) {
+              console.warn('Could not parse output as JSON:', e);
+            }
+          }
+          
+          
+          setAgentOutputs((prev) => ({
+            ...prev,
+            [agent]: parsedOutput,
+          }));
+          
+          // FIX: Clear "Working" status after output received
+          setTimeout(() => {
+            setCurrentAgent((current) => current === agent ? null : current);
+          }, 500); // Small delay so user sees the transition
+        },
+
+        // Complete callback
+        onComplete: (data) => {
+          console.log('[Complete]', data);
           setIsLoading(false);
+          setCurrentAgent(null);
+          
           // Check if debate ended
           if (data.debate_ended && data.growth_feedback) {
             setFeedback(data.growth_feedback);
           }
         },
-        // On error
-        (error) => {
-          console.error('Streaming error:', error);
+
+        // Error callback
+        onError: (error) => {
+          console.error('[Streaming error]', error);
           setIsLoading(false);
+          setCurrentAgent(null);
           // Fallback to non-streaming
           handleSendMessageFallback(userInput, aiMessageIndex);
-        }
-      );
+        },
+      });
       
       setCurrentStream(stream);
     } catch (error) {
@@ -101,18 +200,17 @@ function Debate() {
     }
   };
 
-    const handleEndDebate = async () => {
-      if (!confirm('Are you sure you want to end this debate?')) return;
+  const handleEndDebate = async () => {
+    if (!confirm('Are you sure you want to end this debate?')) return;
 
-      try {
-        await debateService.endDebate(sessionId);
-        navigate('/');   // <-- redirects to home
-      } catch (error) {
-        console.error('Error ending debate:', error);
-        alert('Failed to end debate');
-      }
-    };
-
+    try {
+      await debateService.endDebate(sessionId);
+      navigate('/');
+    } catch (error) {
+      console.error('Error ending debate:', error);
+      alert('Failed to end debate');
+    }
+  };
 
   const handleCloseFeedback = () => {
     setFeedback(null);
@@ -135,30 +233,6 @@ function Debate() {
     };
   }, [currentStream]);
 
-  useEffect(() => {
-    if (location.state?.isResume) {
-      loadPreviousMessages();
-    }
-  }, []);
-
-  const loadPreviousMessages = async () => {
-    try {
-      const response = await fetch(
-        `http://127.0.0.1:8001/api/user/debate/${sessionId}/turns`
-      );
-      const data = await response.json();
-      
-      const loadedMessages = data.turns.flatMap(turn => [
-        { role: 'user', content: turn.user_input },
-        { role: 'assistant', content: turn.ai_response }
-      ]);
-      
-      setMessages(loadedMessages);
-    } catch (error) {
-      console.error('Error loading previous messages:', error);
-    }
-  };
-
   return (
     <div className="h-screen bg-linear-to-br from-gray-50 via-white to-gray-100 relative overflow-hidden flex flex-col">
       {/* Animated background */}
@@ -167,9 +241,9 @@ function Debate() {
         <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-gray-300 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000" />
       </div>
 
-      {/* Header - Glassy */}
+      {/* Header */}
       <div className="relative z-10 backdrop-blur-2xl bg-white/40 border-b border-white/60 shadow-lg">
-        <div className="max-w-4xl mx-auto px-6 py-5 flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">{topic}</h2>
             <div className="flex items-center gap-4 mt-2 text-sm">
@@ -198,129 +272,138 @@ function Debate() {
         </div>
       </div>
 
-      {/* Messages Area - Glassy */}
-      <div className="flex-1 overflow-y-auto max-w-4xl w-full mx-auto px-6 py-6 relative z-10">
-        <AnimatePresence initial={false}>
-          {messages.map((msg, index) => (
-            <motion.div
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.3 }}
-              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-5`}
-            >
-              <div
-                className={`max-w-[80%] rounded-2xl p-5 shadow-xl border
-                  ${msg.role === 'user'
-                    ? 'backdrop-blur-2xl bg-gray-900/90 text-white border-gray-700/50 rounded-br-md'
-                    : 'backdrop-blur-2xl bg-white/70 text-gray-900 border-white/80 rounded-bl-md'
-                  }
-                  hover:shadow-2xl transition-all duration-300`}
+      {/* ====================================================================
+          MAIN CONTENT: SPLIT VIEW (Messages + Insights Panel)
+          ==================================================================== */}
+      <div className="flex-1 flex overflow-hidden relative z-10">
+        
+        {/* LEFT: Messages Area (70%) */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto max-w-4xl w-full mx-auto px-6 py-6">
+            <AnimatePresence initial={false}>
+              {messages.map((msg, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                  className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} mb-5`}
+                >
+                  <div
+                    className={`max-w-[80%] rounded-2xl p-5 shadow-xl border
+                      ${msg.role === 'user'
+                        ? 'backdrop-blur-2xl bg-gray-900/90 text-white border-gray-700/50 rounded-br-md'
+                        : 'backdrop-blur-2xl bg-white/70 text-gray-900 border-white/80 rounded-bl-md'
+                      }
+                      hover:shadow-2xl transition-all duration-300`}
+                  >
+                    <p className={`whitespace-pre-wrap text-sm leading-relaxed ${msg.role === 'user' ? 'text-gray-100' : 'text-gray-800'}`}>
+                      {msg.content}
+                    </p>
+                  </div>
+                </motion.div>
+              ))}
+            </AnimatePresence>
+
+            {/* Loading indicator */}
+            {isLoading && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-start mb-5"
               >
-                {/* Sender */}
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="text-xl">
-                    {msg.role === 'user' ? '' : ''}
-                  </span>
-                  <span className={`text-sm font-semibold ${msg.role === 'user' ? 'text-gray-100' : 'text-gray-900'}`}>
-                    {msg.role === 'user' ? '' : ''}
-                  </span>
+                <div className="backdrop-blur-2xl bg-white/70 border border-white/80 rounded-2xl rounded-bl-md p-5 shadow-xl">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xl"></span>
+                    <div className="flex gap-1.5">
+                      <motion.div
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ repeat: Infinity, duration: 0.8, delay: 0 }}
+                        className="w-2.5 h-2.5 rounded-full bg-gray-400"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ repeat: Infinity, duration: 0.8, delay: 0.2 }}
+                        className="w-2.5 h-2.5 rounded-full bg-gray-400"
+                      />
+                      <motion.div
+                        animate={{ scale: [1, 1.3, 1] }}
+                        transition={{ repeat: Infinity, duration: 0.8, delay: 0.4 }}
+                        className="w-2.5 h-2.5 rounded-full bg-gray-400"
+                      />
+                    </div>
+                    {statusMessage && (
+                      <span className="text-sm text-gray-600">{statusMessage}</span>
+                    )}
+                  </div>
                 </div>
-
-                {/* Message Content */}
-                <p className={`whitespace-pre-wrap text-sm leading-relaxed ${msg.role === 'user' ? 'text-gray-100' : 'text-gray-800'}`}>
-                  {msg.content}
-                </p>
-              </div>
-            </motion.div>
-          ))}
-        </AnimatePresence>
-
-        {/* Loading indicator */}
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="flex justify-start mb-5"
-          >
-            <div className="backdrop-blur-2xl bg-white/70 border border-white/80 rounded-2xl rounded-bl-md p-5 shadow-xl">
-              <div className="flex items-center gap-3">
-                <span className="text-xl"></span>
-                <div className="flex gap-1.5">
-                  <motion.div
-                    animate={{ scale: [1, 1.3, 1] }}
-                    transition={{ repeat: Infinity, duration: 0.8, delay: 0 }}
-                    className="w-2.5 h-2.5 rounded-full bg-gray-400"
-                  />
-                  <motion.div
-                    animate={{ scale: [1, 1.3, 1] }}
-                    transition={{ repeat: Infinity, duration: 0.8, delay: 0.2 }}
-                    className="w-2.5 h-2.5 rounded-full bg-gray-400"
-                  />
-                  <motion.div
-                    animate={{ scale: [1, 1.3, 1] }}
-                    transition={{ repeat: Infinity, duration: 0.8, delay: 0.4 }}
-                    className="w-2.5 h-2.5 rounded-full bg-gray-400"
-                  />
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </div>
-
-      {/* Input Area - Glassy */}
-      <div className="relative z-10 backdrop-blur-2xl bg-white/40 border-t border-white/60 shadow-lg">
-        <div className="max-w-4xl mx-auto px-6 py-5">
-          <div className="flex items-end gap-4">
-            {/* Textarea */}
-            <div className="flex-1 backdrop-blur-xl bg-white/50 border border-white/80 rounded-2xl shadow-lg overflow-hidden
-                          focus-within:ring-2 focus-within:ring-gray-400/50 transition-all duration-300">
-              <textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={handleKeyDown}
-                placeholder="Type your response..."
-                disabled={isLoading}
-                rows={1}
-                className="w-full resize-none px-5 py-4 bg-transparent text-gray-900 placeholder-gray-500
-                           focus:outline-none disabled:opacity-50"
-              />
-            </div>
-
-            {/* Send Button */}
-            <motion.button
-              onClick={handleSendMessage}
-              disabled={isLoading || !input.trim()}
-              whileHover={!isLoading && input.trim() ? { scale: 1.05, y: -2 } : {}}
-              whileTap={!isLoading && input.trim() ? { scale: 0.95 } : {}}
-              className="px-8 py-4 rounded-2xl font-semibold
-                         backdrop-blur-xl bg-gray-900/90 text-white
-                         border border-gray-700/50
-                         shadow-lg hover:shadow-xl
-                         transition-all duration-300
-                         disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-              ) : (
-                'Send'
-              )}
-            </motion.button>
+              </motion.div>
+            )}
           </div>
 
-          {/* Hint */}
-          <p className="mt-3 text-xs text-gray-500 text-center">
-            Press <span className="font-semibold">Enter</span> to send · <span className="font-semibold">Shift + Enter</span> for new line
-          </p>
+          {/* Input Area */}
+          <div className="backdrop-blur-2xl bg-white/40 border-t border-white/60 shadow-lg">
+            <div className="max-w-4xl mx-auto px-6 py-5">
+              <div className="flex items-end gap-4">
+                <div className="flex-1 backdrop-blur-xl bg-white/50 border border-white/80 rounded-2xl shadow-lg overflow-hidden
+                              focus-within:ring-2 focus-within:ring-gray-400/50 transition-all duration-300">
+                  <textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    placeholder="Type your response..."
+                    disabled={isLoading}
+                    rows={1}
+                    className="w-full resize-none px-5 py-4 bg-transparent text-gray-900 placeholder-gray-500
+                               focus:outline-none disabled:opacity-50"
+                  />
+                </div>
+
+                <motion.button
+                  onClick={handleSendMessage}
+                  disabled={isLoading || !input.trim()}
+                  whileHover={!isLoading && input.trim() ? { scale: 1.05, y: -2 } : {}}
+                  whileTap={!isLoading && input.trim() ? { scale: 0.95 } : {}}
+                  className="px-8 py-4 rounded-2xl font-semibold
+                             backdrop-blur-xl bg-gray-900/90 text-white
+                             border border-gray-700/50
+                             shadow-lg hover:shadow-xl
+                             transition-all duration-300
+                             disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  {isLoading ? (
+                    <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                  ) : (
+                    'Send'
+                  )}
+                </motion.button>
+              </div>
+
+              <p className="mt-3 text-xs text-gray-500 text-center">
+                Press <span className="font-semibold">Enter</span> to send · <span className="font-semibold">Shift + Enter</span> for new line
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* RIGHT: Agent Insights Panel (30%) */}
+        <div className="w-100 hidden lg:block">
+          <AgentInsightsPanel
+            analyzerOutput={agentOutputs.analyzer}
+            researchOutput={agentOutputs.researcher}
+            socraticOutput={agentOutputs.socratic_questioner}
+            advocateOutput={agentOutputs.devils_advocate}
+            currentAgent={currentAgent}
+            isStreaming={isLoading}
+          />
         </div>
       </div>
 
-      {/* Feedback Modal */}
+      {/* Feedback Modal - Keep existing implementation */}
       {feedback && (
         <motion.div
           initial={{ opacity: 0 }}
@@ -341,7 +424,7 @@ function Debate() {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Overall Performance</h3>
-                <p className="text-gray-700 capitalize">{feedback.overall_performance}</p>
+                <p className="text-gray-700 capitalize">{feedback.overall_performance || 'Good'}</p>
               </div>
 
               {feedback.strengths && feedback.strengths.length > 0 && (
@@ -360,16 +443,9 @@ function Debate() {
                   <h3 className="text-lg font-semibold text-gray-900 mb-2">Areas for Improvement</h3>
                   <ul className="list-disc list-inside space-y-1">
                     {feedback.areas_for_improvement.map((area, idx) => (
-                      <li key={idx} className="text-gray-700">{area}</li>
+                      <li key={idx} className="text-gray-700">{area.issue || area}</li>
                     ))}
                   </ul>
-                </div>
-              )}
-
-              {feedback.specific_feedback && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Specific Feedback</h3>
-                  <p className="text-gray-700">{feedback.specific_feedback}</p>
                 </div>
               )}
             </div>
