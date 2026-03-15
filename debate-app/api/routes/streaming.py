@@ -72,6 +72,8 @@ async def load_debate_state(session_id: str, db: AsyncSession) -> Dict[str, Any]
         .order_by(Turn.turn_number)
     )
     turns = result.scalars().all()
+
+    logger.info(f"[TURNS]: {turns}")
     
     logger.info(f"[LOAD STATE] Session {session_id}: {len(turns)} turns found")
     
@@ -87,6 +89,9 @@ async def load_debate_state(session_id: str, db: AsyncSession) -> Dict[str, Any]
             "content": turn.ai_response,
             "turn": turn.turn_number
         })
+
+    logger.info(f"[Conversation history]: {conversation_history}")
+    logger.info(f"length of conv. is {len(conversation_history)}")
     
     state = {
         "session_id": session_id,

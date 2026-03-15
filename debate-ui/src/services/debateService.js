@@ -50,7 +50,7 @@ export class DebateStream {
     } = callbacks;
 
     const encodedMessage = encodeURIComponent(message);
-    const url = `http://127.0.0.1:8001/api/debate/stream/${sessionId}?user_input=${encodedMessage}`;
+    const url = `http://127.0.0.1:8000/api/debate/stream/${sessionId}?user_input=${encodedMessage}`;
     
     this.eventSource = new EventSource(url);
     
