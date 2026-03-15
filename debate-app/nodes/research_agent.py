@@ -495,7 +495,7 @@ def research_agent_node(state: DebateState):
         all_results = []
         for query in queries:
             print(f"[Research Agent] Searching: {query}")
-            results = web_search_tool(query)  # Now returns List[Dict] correctly
+            results = web_search_tool.invoke(query)
             
             # Add credibility scores
             for result in results:

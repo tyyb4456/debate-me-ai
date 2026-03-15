@@ -1,19 +1,53 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, BookOpen, HelpCircle, Flame } from 'lucide-react';
+import { Search, BookOpen, HelpCircle, Flame, TrendingUp, TrendingDown, Minus } from 'lucide-react';
 
 const CYPRUS = '#004643';
 const SAND = '#F0EDE5';
 
+// ============================================================================
+// MAIN PANEL
+// ============================================================================
+
 function AgentInsightsPanel({ analyzerOutput, researchOutput, socraticOutput, advocateOutput, currentAgent, isStreaming }) {
-  const [expandedAgent, setExpandedAgent] = useState('analyzer');
+  // Track which agent was most recently completed — auto-expand that one
+  const [expandedAgent, setExpandedAgent] = useState(null);
+  const prevOutputs = useRef({ analyzerOutput: null, researchOutput: null, socraticOutput: null, advocateOutput: null });
 
-  useEffect(() => { if (analyzerOutput) setExpandedAgent('analyzer'); }, [analyzerOutput]);
-  useEffect(() => { if (researchOutput) setExpandedAgent('researcher'); }, [researchOutput]);
-  useEffect(() => { if (socraticOutput) setExpandedAgent('socratic_questioner'); }, [socraticOutput]);
-  useEffect(() => { if (advocateOutput) setExpandedAgent('devils_advocate'); }, [advocateOutput]);
+  useEffect(() => {
+    // Only auto-expand when NEW output arrives (not on re-renders)
+    if (analyzerOutput && analyzerOutput !== prevOutputs.current.analyzerOutput) {
+      setExpandedAgent('analyzer');
+      prevOutputs.current.analyzerOutput = analyzerOutput;
+    }
+  }, [analyzerOutput]);
 
-  const toggleAgent = (agentName) => setExpandedAgent(expandedAgent === agentName ? null : agentName);
+  useEffect(() => {
+    if (researchOutput && researchOutput !== prevOutputs.current.researchOutput) {
+      setExpandedAgent('researcher');
+      prevOutputs.current.researchOutput = researchOutput;
+    }
+  }, [researchOutput]);
+
+  useEffect(() => {
+    if (socraticOutput && socraticOutput !== prevOutputs.current.socraticOutput) {
+      setExpandedAgent('socratic_questioner');
+      prevOutputs.current.socraticOutput = socraticOutput;
+    }
+  }, [socraticOutput]);
+
+  useEffect(() => {
+    if (advocateOutput && advocateOutput !== prevOutputs.current.advocateOutput) {
+      setExpandedAgent('devils_advocate');
+      prevOutputs.current.advocateOutput = advocateOutput;
+    }
+  }, [advocateOutput]);
+
+  const toggleAgent = (agentName) => {
+    setExpandedAgent(prev => prev === agentName ? null : agentName);
+  };
+
+  const hasAnyOutput = analyzerOutput || researchOutput || socraticOutput || advocateOutput;
 
   return (
     <div className="h-full flex flex-col overflow-hidden" style={{ backgroundColor: 'rgba(0,70,67,0.02)' }}>
@@ -95,7 +129,7 @@ function AgentInsightsPanel({ analyzerOutput, researchOutput, socraticOutput, ad
           {advocateOutput && <AdvocateInsights output={advocateOutput} />}
         </AgentCard>
 
-        {!analyzerOutput && !researchOutput && !socraticOutput && !advocateOutput && (
+        {!hasAnyOutput && (
           <div className="flex flex-col items-center justify-center py-12 gap-3">
             <div
               className="w-12 h-12 rounded-full flex items-center justify-center"
@@ -139,42 +173,41 @@ function AgentCard({ name, icon, title, isActive, isExpanded, onToggle, hasOutpu
   const bgColor = isActive
     ? 'rgba(0,70,67,0.06)'
     : hasOutput
-    ? 'white'
-    : 'rgba(255,255,255,0.5)';
+    ? 'rgba(0,70,67,0.02)'
+    : 'transparent';
 
   return (
     <motion.div
       layout
-      className="rounded-2xl overflow-hidden border transition-all duration-300"
+      className="rounded-2xl border overflow-hidden transition-colors duration-300"
       style={{ borderColor, backgroundColor: bgColor }}
     >
       <button
         onClick={onToggle}
-        className="w-full px-4 py-3 flex items-center justify-between transition-colors"
-        style={{ fontFamily: "'DM Sans', sans-serif" }}
+        disabled={!hasOutput && !isActive}
+        className="w-full flex items-center justify-between px-4 py-3"
+        style={{ cursor: hasOutput ? 'pointer' : 'default' }}
       >
         <div className="flex items-center gap-2.5">
           <div
-            className="w-7 h-7 rounded-full flex items-center justify-center shrink-0"
-            style={{ backgroundColor: isActive || hasOutput ? 'rgba(0,70,67,0.1)' : 'rgba(0,70,67,0.05)', color: CYPRUS }}
+            className="w-7 h-7 rounded-xl flex items-center justify-center shrink-0"
+            style={{
+              backgroundColor: isActive ? CYPRUS : hasOutput ? 'rgba(0,70,67,0.1)' : 'rgba(0,70,67,0.05)',
+              color: isActive ? SAND : CYPRUS,
+              transition: 'all 0.3s'
+            }}
           >
             {icon}
           </div>
           <div className="text-left">
-            <div className="flex items-center gap-2">
-              <p className="font-semibold text-sm" style={{ color: '#1a1a1a' }}>{title}</p>
-              {justCompleted && (
-                <motion.span
-                  initial={{ scale: 0 }}
-                  animate={{ scale: 1 }}
-                  className="px-1.5 py-0.5 text-xs font-bold text-white rounded-full"
-                  style={{ backgroundColor: '#22c55e', fontSize: '0.6rem' }}
-                >
-                  NEW
-                </motion.span>
-              )}
-            </div>
-            <p className="text-xs" style={{ color: isActive ? CYPRUS : hasOutput ? '#22c55e' : 'rgba(0,70,67,0.4)' }}>
+            <p className="text-xs font-semibold" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>{title}</p>
+            <p
+              className="text-xs"
+              style={{
+                fontFamily: "'DM Sans', sans-serif",
+                color: isActive ? CYPRUS : justCompleted ? '#22c55e' : hasOutput ? 'rgba(0,70,67,0.4)' : 'rgba(0,70,67,0.4)'
+              }}
+            >
               {isActive ? 'Analyzing…' : hasOutput ? 'Complete' : 'Waiting'}
             </p>
           </div>
@@ -186,7 +219,7 @@ function AgentCard({ name, icon, title, isActive, isExpanded, onToggle, hasOutpu
               <div key={i} className="w-1.5 h-1.5 rounded-full animate-bounce" style={{ backgroundColor: CYPRUS, animationDelay: `${d}s` }} />
             ))}
           </div>
-        ) : (
+        ) : hasOutput ? (
           <motion.svg
             animate={{ rotate: isExpanded ? 180 : 0 }}
             transition={{ duration: 0.2 }}
@@ -198,7 +231,7 @@ function AgentCard({ name, icon, title, isActive, isExpanded, onToggle, hasOutpu
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
           </motion.svg>
-        )}
+        ) : null}
       </button>
 
       <AnimatePresence>
@@ -226,10 +259,16 @@ function AgentCard({ name, icon, title, isActive, isExpanded, onToggle, hasOutpu
 // ============================================================================
 
 function AnalyzerInsights({ output }) {
-  const data = typeof output === 'string' ? JSON.parse(output) : output;
+  let data;
+  try {
+    data = typeof output === 'string' ? JSON.parse(output) : output;
+  } catch {
+    return <p className="text-xs" style={{ color: 'rgba(0,70,67,0.5)' }}>Unable to parse output.</p>;
+  }
 
   return (
     <div className="space-y-3">
+      {/* Argument Strength Score */}
       {data.argument_strength && (
         <div>
           <p className="text-xs font-semibold mb-2" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>Argument Quality</p>
@@ -257,6 +296,7 @@ function AnalyzerInsights({ output }) {
         </div>
       )}
 
+      {/* Fallacies */}
       {data.fallacies_detected?.length > 0 && (
         <div>
           <p className="text-xs font-semibold mb-2" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>Logical Issues</p>
@@ -273,7 +313,7 @@ function AnalyzerInsights({ output }) {
               }}
             >
               <p className="text-xs font-semibold capitalize" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>
-                {fallacy.type.replace('_', ' ')}
+                {fallacy.type?.replace(/_/g, ' ')}
               </p>
               <p className="text-xs mt-0.5" style={{ color: 'rgba(0,0,0,0.6)', fontFamily: "'DM Sans', sans-serif" }}>{fallacy.explanation}</p>
             </motion.div>
@@ -281,12 +321,13 @@ function AnalyzerInsights({ output }) {
         </div>
       )}
 
+      {/* Assumptions */}
       {data.implicit_assumptions?.length > 0 && (
         <div>
           <p className="text-xs font-semibold mb-1.5" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>Assumptions</p>
           {data.implicit_assumptions.slice(0, 2).map((a, i) => (
             <div key={i} className="text-xs mb-1" style={{ color: 'rgba(0,70,67,0.7)', fontFamily: "'DM Sans', sans-serif" }}>
-              · {a.assumption}
+              · {a.assumption || a}
             </div>
           ))}
         </div>
@@ -296,29 +337,141 @@ function AnalyzerInsights({ output }) {
 }
 
 // ============================================================================
-// RESEARCH INSIGHTS
+// RESEARCH INSIGHTS  ← FIXED: now reads actual ResearchOutput fields
 // ============================================================================
 
 function ResearchInsights({ output }) {
-  const data = typeof output === 'string' ? JSON.parse(output) : output;
+  let data;
+  try {
+    data = typeof output === 'string' ? JSON.parse(output) : output;
+  } catch {
+    return <p className="text-xs" style={{ color: 'rgba(0,70,67,0.5)' }}>Unable to parse research output.</p>;
+  }
+
+  const supporting = data.supporting_evidence || [];
+  const opposing = data.opposing_evidence || [];
+  const neutral = data.neutral_evidence || [];
+  const totalSources = data.total_sources_found || 0;
+  const strength = data.overall_evidence_strength || null;
+  const strongest = data.strongest_source || null;
+  const credibility = data.credibility_summary || {};
+
+  const strengthConfig = {
+    strong_support: { label: 'Strong Support', color: '#16a34a', bg: 'rgba(22,163,74,0.08)', border: 'rgba(22,163,74,0.25)', Icon: TrendingUp },
+    mixed: { label: 'Mixed Evidence', color: '#d97706', bg: 'rgba(217,119,6,0.08)', border: 'rgba(217,119,6,0.25)', Icon: Minus },
+    strong_opposition: { label: 'Mostly Against', color: '#dc2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.25)', Icon: TrendingDown },
+  };
+
+  const sc = strength ? strengthConfig[strength] : null;
+
+  const hasContent = supporting.length > 0 || opposing.length > 0 || neutral.length > 0 || strongest || totalSources > 0;
 
   return (
     <div className="space-y-3">
-      {data.key_facts?.length > 0 && (
+      {/* Evidence Strength Badge */}
+      {sc && (
+        <div className="flex items-center gap-2 p-2.5 rounded-xl border" style={{ borderColor: sc.border, backgroundColor: sc.bg }}>
+          <sc.Icon size={14} color={sc.color} />
+          <div>
+            <p className="text-xs font-semibold" style={{ color: sc.color, fontFamily: "'DM Sans', sans-serif" }}>{sc.label}</p>
+            <p className="text-xs" style={{ color: 'rgba(0,0,0,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
+              {totalSources} source{totalSources !== 1 ? 's' : ''} analyzed
+              {credibility.high_credibility_count > 0 && ` · ${credibility.high_credibility_count} high credibility`}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Strongest Source */}
+      {strongest && (
         <div>
-          <p className="text-xs font-semibold mb-2" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>Key Facts</p>
-          {data.key_facts.slice(0, 3).map((fact, i) => (
-            <div key={i} className="p-2.5 rounded-xl mb-2 border" style={{ borderColor: 'rgba(0,70,67,0.15)', backgroundColor: 'rgba(0,70,67,0.03)' }}>
-              <p className="text-xs" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>{fact.fact || fact}</p>
-            </div>
+          <p className="text-xs font-semibold mb-1.5" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
+            Most Credible Source
+          </p>
+          <div className="p-2.5 rounded-xl border" style={{ borderColor: 'rgba(0,70,67,0.15)', backgroundColor: 'rgba(0,70,67,0.03)' }}>
+            <p className="text-xs font-medium" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>
+              {strongest.title || strongest.source_name || 'Source'}
+            </p>
+            {strongest.url && (
+              <a
+                href={strongest.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs mt-0.5 block truncate"
+                style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}
+              >
+                {strongest.url}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Supporting Evidence */}
+      {supporting.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold mb-1.5" style={{ color: '#16a34a', fontFamily: "'DM Sans', sans-serif" }}>
+            Supporting ({supporting.length})
+          </p>
+          {supporting.slice(0, 2).map((ev, i) => (
+            <EvidenceItem key={i} ev={ev} accentColor="rgba(22,163,74,0.2)" accentBg="rgba(22,163,74,0.04)" />
           ))}
         </div>
       )}
-      {data.evidence_summary && (
+
+      {/* Opposing Evidence */}
+      {opposing.length > 0 && (
         <div>
-          <p className="text-xs font-semibold mb-1.5" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>Evidence Summary</p>
-          <p className="text-xs" style={{ color: 'rgba(0,70,67,0.7)', fontFamily: "'DM Sans', sans-serif" }}>{data.evidence_summary}</p>
+          <p className="text-xs font-semibold mb-1.5" style={{ color: '#dc2626', fontFamily: "'DM Sans', sans-serif" }}>
+            Opposing ({opposing.length})
+          </p>
+          {opposing.slice(0, 2).map((ev, i) => (
+            <EvidenceItem key={i} ev={ev} accentColor="rgba(220,38,38,0.2)" accentBg="rgba(220,38,38,0.04)" />
+          ))}
         </div>
+      )}
+
+      {/* Neutral Evidence */}
+      {neutral.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold mb-1.5" style={{ color: 'rgba(0,70,67,0.6)', fontFamily: "'DM Sans', sans-serif" }}>
+            Neutral ({neutral.length})
+          </p>
+          {neutral.slice(0, 1).map((ev, i) => (
+            <EvidenceItem key={i} ev={ev} accentColor="rgba(0,70,67,0.15)" accentBg="rgba(0,70,67,0.03)" />
+          ))}
+        </div>
+      )}
+
+      {/* Fallback — research ran but categorisation returned nothing */}
+      {!hasContent && (
+        <p className="text-xs" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
+          Research completed but no categorised evidence found. The AI will still use these findings in its response.
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Small reusable evidence card
+function EvidenceItem({ ev, accentColor, accentBg }) {
+  return (
+    <div
+      className="p-2.5 rounded-xl mb-2 border"
+      style={{ borderColor: accentColor, backgroundColor: accentBg }}
+    >
+      <p className="text-xs font-medium" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>
+        {ev.source_name || ev.title || 'Source'}
+      </p>
+      {ev.key_finding && (
+        <p className="text-xs mt-0.5" style={{ color: 'rgba(0,0,0,0.6)', fontFamily: "'DM Sans', sans-serif" }}>
+          {ev.key_finding}
+        </p>
+      )}
+      {ev.publication_year && (
+        <p className="text-xs mt-0.5" style={{ color: 'rgba(0,0,0,0.35)', fontFamily: "'DM Sans', sans-serif" }}>
+          {ev.publication_year}
+        </p>
       )}
     </div>
   );
@@ -329,22 +482,41 @@ function ResearchInsights({ output }) {
 // ============================================================================
 
 function SocraticInsights({ output }) {
-  const data = typeof output === 'string' ? JSON.parse(output) : output;
+  let data;
+  try {
+    data = typeof output === 'string' ? JSON.parse(output) : output;
+  } catch {
+    return <p className="text-xs" style={{ color: 'rgba(0,70,67,0.5)' }}>Unable to parse output.</p>;
+  }
 
   return (
     <div className="space-y-2">
-      {data.questions?.length > 0 && (
+      {data.questions?.length > 0 ? (
         <>
-          <p className="text-xs font-semibold mb-2" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>Questions Being Asked</p>
+          <p className="text-xs font-semibold mb-2" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
+            Questions Being Asked
+          </p>
           {data.questions.map((q, i) => (
-            <div key={i} className="p-2.5 rounded-xl border" style={{ borderColor: 'rgba(0,70,67,0.15)', backgroundColor: 'rgba(0,70,67,0.03)' }}>
-              <p className="text-xs font-medium" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>{q.question_text}</p>
-              <p className="text-xs mt-0.5 capitalize" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
-                {q.question_type?.replace('_', ' ')}
+            <div
+              key={i}
+              className="p-2.5 rounded-xl border"
+              style={{ borderColor: 'rgba(0,70,67,0.15)', backgroundColor: 'rgba(0,70,67,0.03)' }}
+            >
+              <p className="text-xs font-medium" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>
+                {q.question_text || q}
               </p>
+              {q.question_type && (
+                <p className="text-xs mt-0.5 capitalize" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
+                  {q.question_type.replace(/_/g, ' ')}
+                </p>
+              )}
             </div>
           ))}
         </>
+      ) : (
+        <p className="text-xs" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
+          Probing questions generated.
+        </p>
       )}
     </div>
   );
@@ -355,28 +527,67 @@ function SocraticInsights({ output }) {
 // ============================================================================
 
 function AdvocateInsights({ output }) {
-  const data = typeof output === 'string' ? JSON.parse(output) : output;
+  let data;
+  try {
+    data = typeof output === 'string' ? JSON.parse(output) : output;
+  } catch {
+    return <p className="text-xs" style={{ color: 'rgba(0,70,67,0.5)' }}>Unable to parse output.</p>;
+  }
 
   return (
     <div className="space-y-3">
+      {/* Counter-Position */}
       {data.opposing_position && (
-        <div className="p-2.5 rounded-xl border" style={{ borderColor: 'rgba(0,70,67,0.2)', backgroundColor: 'rgba(0,70,67,0.04)' }}>
-          <p className="text-xs font-semibold mb-1" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>Counter-Position</p>
-          <p className="text-xs" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>{data.opposing_position.statement}</p>
+        <div
+          className="p-2.5 rounded-xl border"
+          style={{ borderColor: 'rgba(0,70,67,0.2)', backgroundColor: 'rgba(0,70,67,0.04)' }}
+        >
+          <p className="text-xs font-semibold mb-1" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
+            Counter-Position
+          </p>
+          <p className="text-xs" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>
+            {data.opposing_position.statement || data.opposing_position}
+          </p>
         </div>
       )}
 
+      {/* Counter-Arguments */}
       {data.counter_arguments?.length > 0 && (
         <div>
           <p className="text-xs font-semibold mb-2" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
             Counter-Arguments ({data.counter_arguments.length})
           </p>
           {data.counter_arguments.slice(0, 2).map((arg, i) => (
-            <div key={i} className="p-2.5 rounded-xl mb-2 border" style={{ borderColor: 'rgba(192,92,58,0.2)', backgroundColor: 'rgba(192,92,58,0.04)' }}>
+            <div
+              key={i}
+              className="p-2.5 rounded-xl mb-2 border"
+              style={{ borderColor: 'rgba(192,92,58,0.2)', backgroundColor: 'rgba(192,92,58,0.04)' }}
+            >
               <p className="text-xs font-semibold capitalize" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>
-                {arg.type.replace('_', ' ')}
+                {arg.type?.replace(/_/g, ' ') || 'Counter'}
               </p>
-              <p className="text-xs mt-0.5" style={{ color: 'rgba(0,0,0,0.6)', fontFamily: "'DM Sans', sans-serif" }}>{arg.argument}</p>
+              <p className="text-xs mt-0.5" style={{ color: 'rgba(0,0,0,0.6)', fontFamily: "'DM Sans', sans-serif" }}>
+                {arg.argument}
+              </p>
+              {arg.strength && (
+                <p className="text-xs mt-0.5 capitalize" style={{ color: 'rgba(192,92,58,0.7)', fontFamily: "'DM Sans', sans-serif" }}>
+                  {arg.strength} argument
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Concessions */}
+      {data.concessions?.length > 0 && (
+        <div>
+          <p className="text-xs font-semibold mb-1.5" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
+            Conceded Points
+          </p>
+          {data.concessions.slice(0, 1).map((c, i) => (
+            <div key={i} className="text-xs" style={{ color: 'rgba(0,70,67,0.7)', fontFamily: "'DM Sans', sans-serif" }}>
+              · {c.point || c}
             </div>
           ))}
         </div>

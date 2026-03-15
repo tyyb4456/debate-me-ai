@@ -1,13 +1,150 @@
 // debate-ui/src/pages/Debate.jsx
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { debateService, DebateStream } from '../services/debateService';
 import AgentInsightsPanel from '../components/AgentInsightsPanel';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 const CYPRUS = '#004643';
 const SAND = '#F0EDE5';
+
+// ============================================================================
+// MARKDOWN RENDERER — styled to match the debate UI
+// ============================================================================
+
+function MarkdownMessage({ content }) {
+  // Normalize single-asterisk italic (*word*) to proper markdown
+  // and ensure the AI's inline emphasis renders correctly
+  return (
+    <ReactMarkdown
+      remarkPlugins={[remarkGfm]}
+      components={{
+        p: ({ children }) => (
+          <p style={{
+            margin: '0 0 0.55em 0',
+            fontSize: '0.875rem',
+            lineHeight: '1.7',
+            color: '#1a1a1a',
+            fontFamily: "'DM Sans', sans-serif",
+          }}>
+            {children}
+          </p>
+        ),
+        strong: ({ children }) => (
+          <strong style={{ fontWeight: 700, color: '#004643' }}>{children}</strong>
+        ),
+        em: ({ children }) => (
+          <em style={{ fontStyle: 'italic', color: '#333' }}>{children}</em>
+        ),
+        h2: ({ children }) => (
+          <h2 style={{
+            fontSize: '0.9rem',
+            fontWeight: 800,
+            color: CYPRUS,
+            margin: '0.9em 0 0.3em',
+            fontFamily: "'Barlow Condensed', sans-serif",
+            letterSpacing: '0.05em',
+            textTransform: 'uppercase',
+          }}>
+            {children}
+          </h2>
+        ),
+        h3: ({ children }) => (
+          <h3 style={{
+            fontSize: '0.875rem',
+            fontWeight: 700,
+            color: CYPRUS,
+            margin: '0.7em 0 0.25em',
+            fontFamily: "'DM Sans', sans-serif",
+          }}>
+            {children}
+          </h3>
+        ),
+        ul: ({ children }) => (
+          <ul style={{
+            margin: '0.35em 0 0.55em 0',
+            paddingLeft: '1.25em',
+            listStyleType: 'disc',
+          }}>
+            {children}
+          </ul>
+        ),
+        ol: ({ children }) => (
+          <ol style={{
+            margin: '0.35em 0 0.55em 0',
+            paddingLeft: '1.35em',
+            listStyleType: 'decimal',
+          }}>
+            {children}
+          </ol>
+        ),
+        li: ({ children }) => (
+          <li style={{
+            fontSize: '0.875rem',
+            lineHeight: '1.6',
+            color: '#1a1a1a',
+            fontFamily: "'DM Sans', sans-serif",
+            marginBottom: '0.2em',
+          }}>
+            {children}
+          </li>
+        ),
+        code: ({ node, inline, children, ...props }) =>
+          inline ? (
+            <code style={{
+              backgroundColor: 'rgba(0,70,67,0.09)',
+              color: CYPRUS,
+              borderRadius: '4px',
+              padding: '1px 5px',
+              fontSize: '0.8rem',
+              fontFamily: 'monospace',
+            }} {...props}>
+              {children}
+            </code>
+          ) : (
+            <pre style={{
+              backgroundColor: 'rgba(0,70,67,0.06)',
+              borderRadius: '8px',
+              padding: '10px 14px',
+              overflowX: 'auto',
+              margin: '0.5em 0',
+            }}>
+              <code style={{ fontSize: '0.8rem', fontFamily: 'monospace', color: CYPRUS }} {...props}>
+                {children}
+              </code>
+            </pre>
+          ),
+        blockquote: ({ children }) => (
+          <blockquote style={{
+            borderLeft: '3px solid rgba(0,70,67,0.35)',
+            margin: '0.5em 0',
+            paddingLeft: '0.9em',
+            color: 'rgba(0,0,0,0.6)',
+            fontStyle: 'italic',
+          }}>
+            {children}
+          </blockquote>
+        ),
+        hr: () => (
+          <hr style={{
+            border: 'none',
+            borderTop: '1px solid rgba(0,70,67,0.15)',
+            margin: '0.8em 0',
+          }} />
+        ),
+      }}
+    >
+      {content}
+    </ReactMarkdown>
+  );
+}
+
+// ============================================================================
+// MAIN DEBATE PAGE
+// ============================================================================
 
 function Debate() {
   const { sessionId } = useParams();
@@ -28,8 +165,17 @@ function Debate() {
   const [currentAgent, setCurrentAgent] = useState(null);
   const [statusMessage, setStatusMessage] = useState('');
 
+  // Auto-scroll ref
+  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
+
   const topic = location.state?.topic || 'Debate Topic';
   const difficulty = location.state?.difficulty || 'standard';
+
+  // Scroll to bottom whenever messages change
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   useEffect(() => {
     if (location.state?.isResume) loadPreviousMessages();
@@ -51,11 +197,15 @@ function Debate() {
 
   const handleSendMessage = async () => {
     if (!input.trim() || isLoading) return;
+
     const userMessage = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMessage]);
     const userInput = input;
     setInput('');
     setIsLoading(true);
+
+    // Reset agent outputs for new turn
+    setAgentOutputs({ analyzer: null, researcher: null, socratic_questioner: null, devils_advocate: null });
 
     const aiMessageIndex = messages.length + 1;
     setMessages((prev) => [...prev, { role: 'assistant', content: '' }]);
@@ -83,12 +233,14 @@ function Debate() {
         onComplete: (data) => {
           setIsLoading(false);
           setCurrentAgent(null);
+          setStatusMessage('');
           if (data.debate_ended && data.growth_feedback) setFeedback(data.growth_feedback);
         },
         onError: (error) => {
           console.error('[Streaming error]', error);
           setIsLoading(false);
           setCurrentAgent(null);
+          setStatusMessage('');
           handleSendMessageFallback(userInput, aiMessageIndex);
         },
       });
@@ -148,9 +300,11 @@ function Debate() {
     >
       <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@700;800;900&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
 
-      {/* Header */}
+      {/* ================================================================
+          HEADER
+      ================================================================ */}
       <div
-        className="shrink-0 border-b px-6 py-4 flex items-center justify-between rounded-t-xl"
+        className="shrink-0 border-b px-6 py-4 flex items-center justify-between"
         style={{ backgroundColor: CYPRUS, borderColor: 'rgba(240,237,229,0.1)' }}
       >
         <div>
@@ -178,18 +332,20 @@ function Debate() {
             >
               Turn {Math.floor(messages.length / 2)}
             </span>
-            {currentAgent && (
-              <motion.span
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0 }}
-                className="px-3 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1.5"
-                style={{ backgroundColor: 'rgba(240,237,229,0.15)', color: SAND }}
-              >
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-                {currentAgent.replace(/_/g, ' ')}
-              </motion.span>
-            )}
+            <AnimatePresence>
+              {currentAgent && (
+                <motion.span
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="px-3 py-0.5 rounded-full text-xs font-semibold flex items-center gap-1.5"
+                  style={{ backgroundColor: 'rgba(240,237,229,0.15)', color: SAND }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+                  {currentAgent.replace(/_/g, ' ')}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
         </div>
 
@@ -198,97 +354,130 @@ function Debate() {
           whileHover={{ scale: 1.03 }}
           whileTap={{ scale: 0.97 }}
           className="px-5 py-2.5 rounded-full text-sm font-semibold border-2 transition-all duration-200"
-          style={{ borderColor: 'rgba(240,237,229,0.4)', color: SAND }}
+          style={{ borderColor: 'rgba(240,237,229,0.4)', color: SAND, fontFamily: "'DM Sans', sans-serif" }}
         >
           End Debate
         </motion.button>
       </div>
 
-      {/* Main Content */}
+      {/* ================================================================
+          MAIN CONTENT
+      ================================================================ */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Messages */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 overflow-y-auto px-6 py-6 max-w-4xl w-full mx-auto">
-            <AnimatePresence initial={false}>
-              {messages.map((msg, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0 }}
-                  transition={{ duration: 0.3 }}
-                  className={`flex mb-4 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
-                  {msg.role === 'assistant' && (
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mr-3 mt-1"
-                      style={{ backgroundColor: CYPRUS, color: SAND }}
-                    >
-                      AI
-                    </div>
-                  )}
-                  <div
-                    className="max-w-[78%] rounded-2xl px-5 py-4 shadow-sm"
-                    style={
-                      msg.role === 'user'
-                        ? { backgroundColor: CYPRUS, color: SAND, borderBottomRightRadius: '4px' }
-                        : { backgroundColor: 'white', color: '#1a1a1a', border: `1px solid rgba(0,70,67,0.1)`, borderBottomLeftRadius: '4px' }
-                    }
-                  >
-                    <p className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</p>
-                  </div>
-                  {msg.role === 'user' && (
-                    <div
-                      className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ml-3 mt-1"
-                      style={{ backgroundColor: 'rgba(0,70,67,0.15)', color: CYPRUS }}
-                    >
-                      U
-                    </div>
-                  )}
-                </motion.div>
-              ))}
-            </AnimatePresence>
 
-            {/* Loading indicator */}
-            {isLoading && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="flex justify-start mb-4"
-              >
-                <div
-                  className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mr-3 mt-1"
-                  style={{ backgroundColor: CYPRUS, color: SAND }}
+        {/* Messages Column */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div
+            ref={messagesContainerRef}
+            className="flex-1 overflow-y-auto px-6 py-6"
+          >
+            <div className="max-w-3xl mx-auto">
+              <AnimatePresence initial={false}>
+                {messages.map((msg, index) => (
+                  <motion.div
+                    key={index}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className={`flex mb-5 ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                  >
+                    {/* AI Avatar */}
+                    {msg.role === 'assistant' && (
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mr-3 mt-1"
+                        style={{ backgroundColor: CYPRUS, color: SAND, fontFamily: "'Barlow Condensed', sans-serif" }}
+                      >
+                        AI
+                      </div>
+                    )}
+
+                    {/* Bubble */}
+                    <div
+                      className="max-w-[78%] rounded-2xl px-5 py-4 shadow-sm"
+                      style={
+                        msg.role === 'user'
+                          ? { backgroundColor: CYPRUS, color: SAND, borderBottomRightRadius: '4px' }
+                          : { backgroundColor: 'white', border: `1px solid rgba(0,70,67,0.1)`, borderBottomLeftRadius: '4px' }
+                      }
+                    >
+                      {msg.role === 'assistant' ? (
+                        // ← MARKDOWN RENDERING for AI messages
+                        msg.content
+                          ? <MarkdownMessage content={msg.content} />
+                          : <span style={{ color: 'rgba(0,70,67,0.3)', fontSize: '0.875rem' }}>…</span>
+                      ) : (
+                        // Plain text for user messages
+                        <p
+                          className="whitespace-pre-wrap text-sm leading-relaxed"
+                          style={{ color: SAND, fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          {msg.content}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* User Avatar */}
+                    {msg.role === 'user' && (
+                      <div
+                        className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ml-3 mt-1"
+                        style={{ backgroundColor: 'rgba(0,70,67,0.15)', color: CYPRUS, fontFamily: "'Barlow Condensed', sans-serif" }}
+                      >
+                        U
+                      </div>
+                    )}
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {/* Loading dots */}
+              {isLoading && messages[messages.length - 1]?.content === '' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex justify-start mb-5"
                 >
-                  AI
-                </div>
-                <div
-                  className="rounded-2xl px-5 py-4 shadow-sm flex items-center gap-3"
-                  style={{ backgroundColor: 'white', border: `1px solid rgba(0,70,67,0.1)` }}
-                >
-                  {[0, 0.2, 0.4].map((d, i) => (
-                    <motion.div
-                      key={i}
-                      animate={{ scale: [1, 1.4, 1] }}
-                      transition={{ repeat: Infinity, duration: 0.8, delay: d }}
-                      className="w-2 h-2 rounded-full"
-                      style={{ backgroundColor: CYPRUS }}
-                    />
-                  ))}
-                  {statusMessage && (
-                    <span className="text-xs ml-1" style={{ color: 'rgba(0,70,67,0.6)' }}>{statusMessage}</span>
-                  )}
-                </div>
-              </motion.div>
-            )}
+                  <div
+                    className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0 mr-3 mt-1"
+                    style={{ backgroundColor: CYPRUS, color: SAND }}
+                  >
+                    AI
+                  </div>
+                  <div
+                    className="rounded-2xl px-5 py-4 shadow-sm flex items-center gap-2"
+                    style={{ backgroundColor: 'white', border: `1px solid rgba(0,70,67,0.1)` }}
+                  >
+                    {[0, 0.18, 0.36].map((d, i) => (
+                      <motion.div
+                        key={i}
+                        animate={{ scale: [1, 1.5, 1], opacity: [0.4, 1, 0.4] }}
+                        transition={{ repeat: Infinity, duration: 0.9, delay: d }}
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: CYPRUS }}
+                      />
+                    ))}
+                    {statusMessage && (
+                      <span className="text-xs ml-2" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
+                        {statusMessage}
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {/* Scroll anchor */}
+              <div ref={messagesEndRef} />
+            </div>
           </div>
 
-          {/* Input Area */}
+          {/* ================================================================
+              INPUT AREA
+          ================================================================ */}
           <div
             className="shrink-0 border-t px-6 py-4"
             style={{ backgroundColor: 'white', borderColor: 'rgba(0,70,67,0.1)' }}
           >
-            <div className="max-w-4xl mx-auto flex items-end gap-3">
+            <div className="max-w-3xl mx-auto flex items-end gap-3">
               <div
                 className="flex-1 rounded-2xl overflow-hidden border-2 transition-all duration-200"
                 style={{ borderColor: 'rgba(0,70,67,0.2)' }}
@@ -326,9 +515,7 @@ function Debate() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
-                ) : (
-                  'Send →'
-                )}
+                ) : 'Send →'}
               </motion.button>
             </div>
             <p className="mt-2 text-xs text-center" style={{ color: 'rgba(0,70,67,0.4)', fontFamily: "'DM Sans', sans-serif" }}>
@@ -337,8 +524,13 @@ function Debate() {
           </div>
         </div>
 
-        {/* Right Panel */}
-        <div className="w-96 hidden lg:flex flex-col border-l overflow-hidden" style={{ borderColor: 'rgba(0,70,67,0.1)', backgroundColor: 'rgba(0,70,67,0.02)' }}>
+        {/* ================================================================
+            RIGHT PANEL — Agent Insights
+        ================================================================ */}
+        <div
+          className="w-96 hidden lg:flex flex-col border-l overflow-hidden"
+          style={{ borderColor: 'rgba(0,70,67,0.1)', backgroundColor: 'rgba(0,70,67,0.02)' }}
+        >
           <AgentInsightsPanel
             analyzerOutput={agentOutputs.analyzer}
             researchOutput={agentOutputs.researcher}
@@ -350,7 +542,9 @@ function Debate() {
         </div>
       </div>
 
-      {/* Feedback Modal */}
+      {/* ================================================================
+          FEEDBACK MODAL
+      ================================================================ */}
       <AnimatePresence>
         {feedback && (
           <motion.div
@@ -373,26 +567,30 @@ function Debate() {
                 className="font-black uppercase mb-6"
                 style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: '2.5rem', color: CYPRUS, letterSpacing: '-0.02em' }}
               >
-                Debate Feedback
+                Debate Complete
               </h2>
 
               <div className="space-y-6">
-                <div>
-                  <h3 className="text-sm font-semibold tracking-widest uppercase mb-2" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
-                    Overall Performance
-                  </h3>
-                  <p className="text-lg capitalize font-medium" style={{ color: '#1a1a1a' }}>{feedback.overall_performance || 'Good'}</p>
-                </div>
-
-                {feedback.strengths?.length > 0 && (
+                {feedback.session_summary && (
                   <div>
-                    <h3 className="text-sm font-semibold tracking-widest uppercase mb-3" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
-                      Strengths
-                    </h3>
+                    <p className="text-xs font-semibold tracking-widest uppercase mb-1" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
+                      Overall Performance
+                    </p>
+                    <p className="text-2xl font-black capitalize" style={{ color: CYPRUS, fontFamily: "'Barlow Condensed', sans-serif" }}>
+                      {feedback.session_summary.overall_performance || 'Completed'}
+                    </p>
+                  </div>
+                )}
+
+                {feedback.what_went_well?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
+                      What Went Well
+                    </p>
                     <ul className="space-y-2">
-                      {feedback.strengths.map((s, i) => (
+                      {feedback.what_went_well.map((s, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>
-                          <span style={{ color: CYPRUS }}>✓</span> {s}
+                          <span style={{ color: '#16a34a', flexShrink: 0 }}>✓</span> {s}
                         </li>
                       ))}
                     </ul>
@@ -401,16 +599,36 @@ function Debate() {
 
                 {feedback.areas_for_improvement?.length > 0 && (
                   <div>
-                    <h3 className="text-sm font-semibold tracking-widest uppercase mb-3" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
-                      Areas for Improvement
-                    </h3>
+                    <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
+                      Areas to Improve
+                    </p>
                     <ul className="space-y-2">
                       {feedback.areas_for_improvement.map((a, i) => (
                         <li key={i} className="flex items-start gap-2 text-sm" style={{ color: '#1a1a1a', fontFamily: "'DM Sans', sans-serif" }}>
-                          <span style={{ color: '#c05c3a' }}>→</span> {a.issue || a}
+                          <span style={{ color: '#c05c3a', flexShrink: 0 }}>→</span>
+                          <span><strong>{a.area}: </strong>{a.suggestion || a.issue || a}</span>
                         </li>
                       ))}
                     </ul>
+                  </div>
+                )}
+
+                {feedback.achievements?.filter(a => a.earned)?.length > 0 && (
+                  <div>
+                    <p className="text-xs font-semibold tracking-widest uppercase mb-3" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
+                      Achievements
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {feedback.achievements.filter(a => a.earned).map((a, i) => (
+                        <span
+                          key={i}
+                          className="px-3 py-1.5 rounded-full text-xs font-semibold"
+                          style={{ backgroundColor: 'rgba(0,70,67,0.1)', color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}
+                        >
+                          {a.badge} {a.description}
+                        </span>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
@@ -419,7 +637,7 @@ function Debate() {
                 onClick={handleCloseFeedback}
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                className="mt-8 w-full py-4 rounded-2xl font-bold text-base transition-all duration-200"
+                className="mt-8 w-full py-4 rounded-2xl font-bold transition-all duration-200"
                 style={{
                   backgroundColor: CYPRUS,
                   color: SAND,
@@ -429,7 +647,7 @@ function Debate() {
                   textTransform: 'uppercase',
                 }}
               >
-                Close & Return Home
+                Return Home
               </motion.button>
             </motion.div>
           </motion.div>
