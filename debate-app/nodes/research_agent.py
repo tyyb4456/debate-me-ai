@@ -478,7 +478,7 @@ def research_agent_node(state: DebateState):
     FIXED: Main research node with proper error handling
     """
     
-    model = init_chat_model("gemini-2.0-flash-exp", model_provider="google_genai", temperature=0.7)
+    model = init_chat_model("gemini-2.5-flash", model_provider="google_genai", temperature=0.7)
     
     # Extract research parameters
     claim = state.get('user_input') or state.get('user_claim', '')

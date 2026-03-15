@@ -146,7 +146,7 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
                     💬
                   </div>
                   <p className="text-sm font-medium" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>No debates yet</p>
-                  <p className="text-xs text-center max-w-[200px]" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
+                  <p className="text-xs text-center max-w-50" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
                     Start your first debate to see your history here
                   </p>
                 </div>

@@ -51,6 +51,9 @@ async def send_message(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
+from sqlalchemy import select
+from database.models import DebateSession
 
 
 @router.post("/end")
@@ -59,6 +62,34 @@ async def end_debate(
     db: AsyncSession = Depends(get_db)
 ):
     """Explicitly end a debate"""
-    # Implementation for explicit end
-    # (Debates can also end naturally through the workflow)
-    return {"message": "Debate ended", "session_id": request.session_id}
+    try:
+        # Load the session to verify it exists and is active
+        result = await db.execute(
+            select(DebateSession).where(DebateSession.session_id == request.session_id)
+        )
+        debate_session = result.scalar_one_or_none()
+
+        if not debate_session:
+            raise HTTPException(status_code=404, detail="Debate session not found")
+
+        if debate_session.status != "active":
+            raise HTTPException(
+                status_code=400,
+                detail=f"Debate is already {debate_session.status}"
+            )
+
+        # Load the current state to pass to _end_debate
+        state = await debate_service._load_or_create_state(db, request.session_id, debate_session)
+        
+        # Mark debate_ended in state so growth tracker runs properly
+        state['debate_ended'] = True
+
+        # Actually end it in the database
+        await debate_service._end_debate(db, request.session_id, state)
+
+        return {"message": "Debate ended", "session_id": request.session_id}
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -57,11 +57,11 @@ function Landing() {
 
       {/* Decorative Cyprus blobs */}
       <div
-        className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full opacity-10 pointer-events-none"
+        className="absolute top-0 right-0 w-125 h-125 rounded-full opacity-10 pointer-events-none"
         style={{ backgroundColor: '#004643', filter: 'blur(120px)', transform: 'translate(30%, -30%)' }}
       />
       <div
-        className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full opacity-10 pointer-events-none"
+        className="absolute bottom-0 left-0 w-100 h-100px rounded-full opacity-10 pointer-events-none"
         style={{ backgroundColor: '#004643', filter: 'blur(100px)', transform: 'translate(-30%, 30%)' }}
       />
 
