@@ -1,15 +1,38 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { debateService } from '../services/debateService';
 import PreviousDebatesSidebar from '../components/PreviousDebatesSidebar';
+import { User } from 'lucide-react';  
+import NameSetupModal from '../components/NameSetupModal';
+
 
 function Landing() {
+  const DUMMY_USER_ID = '8f3c2e7b-6b4a-4c9a-9e6f-2d5c1a8f7e42';
   const [topic, setTopic] = useState('');
   const [difficulty, setDifficulty] = useState('standard');
   const [loading, setLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const navigate = useNavigate();
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [username, setUsername] = useState(null);
+
+   useEffect(() => {
+     const checkUser = async () => {
+       try {
+         const res = await fetch(`http://127.0.0.1:8000/api/user/${DUMMY_USER_ID}/profile`);
+         const data = await res.json();
+         if (!data.user.username) {
+           setShowNameModal(true);
+         } else {
+           setUsername(data.user.username);
+         }
+       } catch (e) {
+         // backend not ready yet, skip
+       }
+     };
+     checkUser();
+   }, []);
 
   const handleStartDebate = async () => {
     if (!topic.trim()) return alert('Please enter a topic');
@@ -66,36 +89,58 @@ function Landing() {
       />
 
       {/* Nav */}
-      <nav className="relative z-20 flex items-center justify-between px-8 py-6">
-        <div className="flex items-center gap-2">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black"
-            style={{ backgroundColor: '#004643' }}
-          >
-            D
-          </div>
-          <span style={{ color: '#004643', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>
-            DEBATEAI
-          </span>
-        </div>
-        <motion.button
-          whileHover={{ scale: 1.03 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={() => setIsSidebarOpen(true)}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold border-2 transition-all duration-200"
-          style={{
-            borderColor: '#004643',
-            color: '#004643',
-            fontFamily: "'DM Sans', sans-serif",
-          }}
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-          History
-        </motion.button>
-      </nav>
+
+
+<nav className="relative z-20 flex items-center justify-between px-8 py-6">
+  {/* Left: Logo */}
+  <div className="flex items-center gap-2">
+    <div
+      className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black"
+      style={{ backgroundColor: '#004643' }}
+    >
+      D
+    </div>
+    <span style={{ color: '#004643', fontFamily: "'Barlow Condensed', sans-serif", fontWeight: 700, fontSize: '1.1rem', letterSpacing: '0.05em' }}>
+      DEBATEAI
+    </span>
+  </div>
+
+  {/* Right: History + Profile */}
+  <div className="flex items-center gap-3">
+    <motion.button
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      onClick={() => setIsSidebarOpen(true)}
+      className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold border-2 transition-all duration-200"
+      style={{
+        borderColor: '#004643',
+        color: '#004643',
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+          d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+      </svg>
+      History
+    </motion.button>
+
+    <motion.button
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      onClick={() => navigate('/profile')}
+      className="flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold border-2 transition-all duration-200"
+      style={{
+        borderColor: '#004643',
+        color: '#004643',
+        fontFamily: "'DM Sans', sans-serif",
+      }}
+    >
+      <User size={16} />
+      Profile
+    </motion.button>
+  </div>
+</nav>
 
       {/* Hero */}
       <section className="relative z-10 max-w-7xl mx-auto px-8 pt-12 pb-24 grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
@@ -383,7 +428,14 @@ function Landing() {
         onClose={() => setIsSidebarOpen(false)}
         onSelectDebate={handleSelectDebate}
       />
-    </div>
+         <NameSetupModal
+     isOpen={showNameModal}
+     onComplete={(name) => {
+       setUsername(name);
+       setShowNameModal(false);
+     }}
+   />
+      </div>
   );
 }
 

@@ -511,3 +511,201 @@ async def delete_debate(
         "message": "Debate deleted successfully",
         "session_id": session_id
     }
+
+# In debate-app/api/routes/history.py
+# REPLACE the existing /profile endpoint with this fixed version.
+# The key fix: count all sessions from debate_sessions table directly
+# instead of relying on user.total_debates (which only counts completed ones).
+
+@router.get("/{user_id}/profile")
+async def get_user_profile(
+    user_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Aggregated profile endpoint — returns everything in one shot.
+    """
+
+    # ── 1. User base info ────────────────────────────────────────────────────
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # ── 2. ALL sessions (for true total count) ───────────────────────────────
+    result = await db.execute(
+        select(DebateSession).where(DebateSession.user_id == user_id)
+    )
+    all_sessions = result.scalars().all()
+    total_all = len(all_sessions)  # 7 in your case — active + completed + abandoned
+
+    # ── 3. Completed debates only (for stats) ────────────────────────────────
+    completed = [s for s in all_sessions if s.status == "completed"]
+    total_completed = len(completed)
+
+    # ── 4. Recent 5 debates (any status) for activity feed ──────────────────
+    recent_sorted = sorted(all_sessions, key=lambda x: x.started_at, reverse=True)[:5]
+    recent_debates = [
+        {
+            "session_id": d.session_id,
+            "topic": d.topic,
+            "difficulty": d.difficulty,
+            "status": d.status,
+            "started_at": d.started_at.isoformat(),
+            "ended_at": d.ended_at.isoformat() if d.ended_at else None,
+            "performance": d.overall_performance,
+            "avg_argument_strength": d.avg_argument_strength,
+            "fallacy_count": d.fallacy_count,
+        }
+        for d in recent_sorted
+    ]
+
+    # ── 5. Performance stats (completed only) ────────────────────────────────
+    avg_strengths = [d.avg_argument_strength for d in completed if d.avg_argument_strength]
+    avg_argument_strength = sum(avg_strengths) / len(avg_strengths) if avg_strengths else 0
+
+    total_fallacies = sum(d.fallacy_count or 0 for d in completed)
+
+    performance_counts = {"excellent": 0, "good": 0, "fair": 0, "poor": 0}
+    for d in completed:
+        if d.overall_performance:
+            performance_counts[d.overall_performance] = (
+                performance_counts.get(d.overall_performance, 0) + 1
+            )
+
+    # Skill trend (first 3 vs last 3 completed)
+    skill_trend = "insufficient_data"
+    improvement_percentage = None
+    if total_completed >= 6:
+        sorted_completed = sorted(completed, key=lambda x: x.started_at)
+        first_3_avg = sum(d.avg_argument_strength or 0 for d in sorted_completed[:3]) / 3
+        last_3_avg = sum(d.avg_argument_strength or 0 for d in sorted_completed[-3:]) / 3
+        improvement_percentage = (
+            round(((last_3_avg - first_3_avg) / first_3_avg * 100), 1)
+            if first_3_avg > 0 else None
+        )
+        if improvement_percentage is not None:
+            skill_trend = (
+                "improving" if improvement_percentage > 5
+                else "stable" if improvement_percentage > -5
+                else "declining"
+            )
+
+    # Most common difficulty (across ALL sessions)
+    difficulty_counts: dict = {}
+    for d in all_sessions:
+        difficulty_counts[d.difficulty] = difficulty_counts.get(d.difficulty, 0) + 1
+    preferred_difficulty = (
+        max(difficulty_counts.items(), key=lambda x: x[1])[0]
+        if difficulty_counts else None
+    )
+
+    # ── 6. Growth trajectory (completed only, for chart) ────────────────────
+    growth_data = [
+        {
+            "debate_number": i,
+            "date": d.started_at.isoformat(),
+            "topic": d.topic,
+            "argument_strength": d.avg_argument_strength,
+            "fallacy_count": d.fallacy_count,
+            "performance": d.overall_performance,
+        }
+        for i, d in enumerate(
+            sorted(completed, key=lambda x: x.started_at), start=1
+        )
+    ]
+
+    # ── 7. Achievements ───────────────────────────────────────────────────────
+    result = await db.execute(
+        select(Achievement)
+        .where(Achievement.user_id == user_id)
+        .order_by(desc(Achievement.earned_at))
+    )
+    achievements_raw = result.scalars().all()
+    achievements = [
+        {
+            "badge_name": a.badge_name,
+            "description": a.description,
+            "earned_at": a.earned_at.isoformat(),
+            "debate_id": a.debate_id,
+        }
+        for a in achievements_raw
+    ]
+
+    # ── 8. Skill label ────────────────────────────────────────────────────────
+    skill = user.current_skill_level or 0.5
+    if skill >= 0.8:
+        skill_label = "Expert"
+    elif skill >= 0.65:
+        skill_label = "Advanced"
+    elif skill >= 0.45:
+        skill_label = "Intermediate"
+    else:
+        skill_label = "Beginner"
+
+    # ── Assemble ──────────────────────────────────────────────────────────────
+    return {
+        "user": {
+            "user_id": str(user.user_id),
+            "username": user.username,
+            "email": user.email,
+            "member_since": user.created_at.isoformat(),
+            "current_skill_level": round(skill, 2),
+            "skill_label": skill_label,
+            "total_debates": total_all,
+        },
+        "stats": {
+            "total_debates": total_all,
+            "completed_debates": total_completed,
+            "active_debates": len([s for s in all_sessions if s.status == "active"]),
+            "avg_argument_strength": round(avg_argument_strength, 2),
+            "total_fallacies": total_fallacies,
+            "avg_fallacies_per_debate": round(total_fallacies / total_completed, 2)
+            if total_completed > 0 else 0,
+            "performance_breakdown": performance_counts,
+            "preferred_difficulty": preferred_difficulty,
+            "skill_trend": skill_trend,
+            "improvement_percentage": improvement_percentage,
+        },
+        "achievements": {
+            "total": len(achievements),
+            "list": achievements,
+        },
+        "recent_debates": recent_debates,
+        "growth_trajectory": growth_data,
+    }
+
+# ============================================================================
+# BACKEND: Add to debate-app/api/routes/history.py (at the bottom)
+# ============================================================================
+
+from pydantic import BaseModel as PydanticBaseModel
+
+class UpdateUserRequest(PydanticBaseModel):
+    username: str | None = None
+    email: str | None = None
+
+@router.patch("/{user_id}/update")
+async def update_user_profile(
+    user_id: str,
+    body: UpdateUserRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """Update username and/or email"""
+    result = await db.execute(select(User).where(User.user_id == user_id))
+    user = result.scalar_one_or_none()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    if body.username is not None:
+        user.username = body.username.strip() or None
+    if body.email is not None:
+        user.email = body.email.strip() or None
+
+    await db.commit()
+    return {
+        "user_id": str(user.user_id),
+        "username": user.username,
+        "email": user.email,
+    }

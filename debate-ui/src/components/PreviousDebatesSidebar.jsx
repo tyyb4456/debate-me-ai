@@ -1,3 +1,5 @@
+// debate-ui/src/components/PreviousDebatesSidebar.jsx
+
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -31,41 +33,51 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
   };
 
   const handleResumeDebate = (debate) => {
-    onSelectDebate({ sessionId: debate.session_id, topic: debate.topic, difficulty: debate.difficulty, isResume: true });
+    onSelectDebate({
+      sessionId: debate.session_id,
+      topic: debate.topic,
+      difficulty: debate.difficulty,
+      isResume: true,
+    });
     onClose();
   };
 
   const formatDate = (dateString) => {
+    if (!dateString) return 'Unknown date';
     const date = new Date(dateString);
+    // Guard against invalid dates
+    if (isNaN(date.getTime())) return 'Unknown date';
     const now = new Date();
     const diffMs = now - date;
     const diffMins = Math.floor(diffMs / 60000);
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
-    if (diffMins < 1) return 'Just now';
+    if (diffMins < 1)  return 'Just now';
     if (diffMins < 60) return `${diffMins}m ago`;
     if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays < 7) return `${diffDays}d ago`;
+    if (diffDays < 7)  return `${diffDays}d ago`;
     return date.toLocaleDateString();
   };
 
-  const getStatusDot = (ended_at, performance) => {
-    if (!ended_at) return '#4ade80';
+  const getStatusColor = (ended_at, performance) => {
+    if (!ended_at) return '#4ade80'; // active — green
     if (performance === 'excellent') return '#60a5fa';
-    if (performance === 'good') return '#a78bfa';
-    if (performance === 'fair') return '#fbbf24';
-    return 'rgba(240,237,229,0.3)';
+    if (performance === 'good')      return '#a78bfa';
+    if (performance === 'fair')      return '#fbbf24';
+    return '#94a3b8'; // poor / completed
   };
 
   const getStatusText = (ended_at, performance) => {
     if (!ended_at) return 'Active';
-    return performance ? performance.charAt(0).toUpperCase() + performance.slice(1) : 'Completed';
+    if (!performance) return 'Completed';
+    return performance.charAt(0).toUpperCase() + performance.slice(1);
   };
 
   return (
     <AnimatePresence>
       {isOpen && (
         <>
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -75,6 +87,7 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
             style={{ backgroundColor: 'rgba(0,70,67,0.4)', backdropFilter: 'blur(4px)' }}
           />
 
+          {/* Drawer */}
           <motion.div
             initial={{ x: '100%' }}
             animate={{ x: 0 }}
@@ -103,7 +116,7 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
                 whileHover={{ scale: 1.1, rotate: 90 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={onClose}
-                className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+                className="w-10 h-10 rounded-full flex items-center justify-center"
                 style={{ backgroundColor: 'rgba(240,237,229,0.1)', color: SAND }}
               >
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -122,7 +135,9 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
                     className="w-10 h-10 rounded-full border-4"
                     style={{ borderColor: 'rgba(0,70,67,0.15)', borderTopColor: CYPRUS }}
                   />
-                  <p className="text-sm" style={{ color: 'rgba(0,70,67,0.6)', fontFamily: "'DM Sans', sans-serif" }}>Loading debates…</p>
+                  <p className="text-sm" style={{ color: 'rgba(0,70,67,0.6)', fontFamily: "'DM Sans', sans-serif" }}>
+                    Loading debates…
+                  </p>
                 </div>
               ) : error ? (
                 <div className="flex flex-col items-center justify-center h-full gap-4">
@@ -145,8 +160,10 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
                   >
                     💬
                   </div>
-                  <p className="text-sm font-medium" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>No debates yet</p>
-                  <p className="text-xs text-center max-w-50" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
+                  <p className="text-sm font-medium" style={{ color: CYPRUS, fontFamily: "'DM Sans', sans-serif" }}>
+                    No debates yet
+                  </p>
+                  <p className="text-xs text-center" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
                     Start your first debate to see your history here
                   </p>
                 </div>
@@ -158,17 +175,17 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className="rounded-2xl p-4 border cursor-pointer transition-all duration-200 group"
+                      className="rounded-2xl p-4 border cursor-pointer group transition-all duration-200"
                       style={{ backgroundColor: 'white', borderColor: 'rgba(0,70,67,0.1)' }}
                       whileHover={{ y: -2, boxShadow: '0 8px 24px rgba(0,70,67,0.12)' }}
                       onClick={() => handleResumeDebate(debate)}
                     >
-                      {/* Status + Date */}
+                      {/* Status + Date row */}
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <div
                             className="w-2 h-2 rounded-full"
-                            style={{ backgroundColor: getStatusDot(debate.ended_at, debate.performance) }}
+                            style={{ backgroundColor: getStatusColor(debate.ended_at, debate.performance) }}
                           />
                           <span
                             className="text-xs font-semibold"
@@ -177,8 +194,9 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
                             {getStatusText(debate.ended_at, debate.performance)}
                           </span>
                         </div>
+                        {/* ← FIX: use started_at, not created_at */}
                         <span className="text-xs" style={{ color: 'rgba(0,70,67,0.4)', fontFamily: "'DM Sans', sans-serif" }}>
-                          {formatDate(debate.created_at)}
+                          {formatDate(debate.started_at)}
                         </span>
                       </div>
 
@@ -190,7 +208,7 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
                         {debate.topic}
                       </p>
 
-                      {/* Meta */}
+                      {/* Meta row */}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <span
@@ -199,8 +217,9 @@ function PreviousDebatesSidebar({ isOpen, onClose, onSelectDebate }) {
                           >
                             {debate.difficulty || 'standard'}
                           </span>
+                          {/* ← FIX: use total_turns, fall back to 0 */}
                           <span className="text-xs" style={{ color: 'rgba(0,70,67,0.5)', fontFamily: "'DM Sans', sans-serif" }}>
-                            {debate.turn_count || 0} turns
+                            {debate.total_turns ?? 0} turn{(debate.total_turns ?? 0) !== 1 ? 's' : ''}
                           </span>
                         </div>
                         <span

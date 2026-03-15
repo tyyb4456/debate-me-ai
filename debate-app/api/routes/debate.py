@@ -1,9 +1,10 @@
 # ============================================================================
-# FILE 7: api/routes/debate.py - Debate Endpoints
+# FILE 7: api/routes/debate.py - Debate Endpoints (FIXED /end route)
 # ============================================================================
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 
 from config.database import get_db
 from api.models import (
@@ -12,6 +13,7 @@ from api.models import (
     EndDebateRequest
 )
 from services.debate_service import debate_service
+from database.models import DebateSession
 
 router = APIRouter()
 
@@ -51,9 +53,6 @@ async def send_message(
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
-    
-from sqlalchemy import select
-from database.models import DebateSession
 
 
 @router.post("/end")
@@ -63,7 +62,6 @@ async def end_debate(
 ):
     """Explicitly end a debate"""
     try:
-        # Load the session to verify it exists and is active
         result = await db.execute(
             select(DebateSession).where(DebateSession.session_id == request.session_id)
         )
@@ -72,19 +70,21 @@ async def end_debate(
         if not debate_session:
             raise HTTPException(status_code=404, detail="Debate session not found")
 
+        # ── If already completed/abandoned, return success silently ───────
+        # (frontend may call this twice; don't crash or double-increment)
         if debate_session.status != "active":
-            raise HTTPException(
-                status_code=400,
-                detail=f"Debate is already {debate_session.status}"
-            )
+            return {
+                "message": f"Debate already {debate_session.status}",
+                "session_id": request.session_id
+            }
 
-        # Load the current state to pass to _end_debate
-        state = await debate_service._load_or_create_state(db, request.session_id, debate_session)
-        
-        # Mark debate_ended in state so growth tracker runs properly
+        # Load current state
+        state = await debate_service._load_or_create_state(
+            db, request.session_id, debate_session
+        )
         state['debate_ended'] = True
 
-        # Actually end it in the database
+        # End it
         await debate_service._end_debate(db, request.session_id, state)
 
         return {"message": "Debate ended", "session_id": request.session_id}
