@@ -370,41 +370,39 @@ async def get_debate_turns(
     session_id: str,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get all turns in a specific debate"""
-    
-    # Verify debate exists
+    """Get all turns in a specific debate — includes full agent output data"""
+ 
     result = await db.execute(
         select(DebateSession).where(DebateSession.session_id == session_id)
     )
     debate = result.scalar_one_or_none()
-    
     if not debate:
         raise HTTPException(status_code=404, detail="Debate session not found")
-    
-    # Get all turns
+ 
     result = await db.execute(
         select(Turn)
         .where(Turn.session_id == session_id)
         .order_by(Turn.turn_number)
     )
     turns = result.scalars().all()
-    
+ 
     return {
         "session_id": session_id,
         "topic": debate.topic,
         "total_turns": len(turns),
         "turns": [
             {
-                "turn_number": t.turn_number,
-                "user_input": t.user_input,
-                "ai_response": t.ai_response,
-                "argument_strength": t.argument_strength,
+                "turn_number":      t.turn_number,
+                "user_input":       t.user_input,
+                "ai_response":      t.ai_response,
+                "argument_strength":  t.argument_strength,
                 "user_skill_at_turn": t.user_skill_at_turn,
-                "timestamp": t.timestamp.isoformat(),
-                "has_analyzer_output": t.analyzer_output is not None,
-                "has_research_output": t.research_output is not None,
-                "has_socratic_output": t.socratic_output is not None,
-                "has_advocate_output": t.advocate_output is not None
+                "timestamp":        t.timestamp.isoformat(),
+                # ── Return actual JSONB data, not booleans ──
+                "analyzer_output":  t.analyzer_output  if t.analyzer_output  else None,
+                "research_output":  t.research_output  if t.research_output  else None,
+                "socratic_output":  t.socratic_output  if t.socratic_output  else None,
+                "advocate_output":  t.advocate_output  if t.advocate_output  else None,
             }
             for t in turns
         ]
