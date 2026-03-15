@@ -436,7 +436,7 @@ export default function Profile() {
         >
           {/* Avatar */}
           <div
-            className="w-20 h-20 rounded-2xl flex items-center justify-center flex-shrink-0 text-4xl font-black"
+            className="w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 text-4xl font-black"
             style={{ backgroundColor: 'rgba(240,237,229,0.15)', fontFamily: "'Barlow Condensed',sans-serif" }}
           >
             {(user.username || 'D').charAt(0).toUpperCase()}
@@ -492,7 +492,7 @@ export default function Profile() {
           </div>
 
           {/* Skill ring */}
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             <SkillRing skill={user.current_skill_level} label={user.skill_label} />
           </div>
         </motion.div>
@@ -710,7 +710,7 @@ export default function Profile() {
                         }}
                       >
                         <div
-                          className="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0"
+                          className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
                           style={{ backgroundColor: `${cfg.color}18` }}
                         >
                           <Icon size={22} style={{ color: cfg.color }} />
@@ -806,7 +806,7 @@ export default function Profile() {
                     >
                       {/* Status dot */}
                       <div
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
                         style={{ backgroundColor: perfColor }}
                       />
 
@@ -852,7 +852,7 @@ export default function Profile() {
                       </div>
 
                       {d.avg_argument_strength != null && (
-                        <div className="text-right flex-shrink-0">
+                        <div className="text-right shrink-0">
                           <p
                             className="text-2xl font-black"
                             style={{ color: CYPRUS, fontFamily: "'Barlow Condensed',sans-serif" }}
